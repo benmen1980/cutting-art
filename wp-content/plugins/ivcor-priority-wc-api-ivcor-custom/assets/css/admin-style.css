@@ -1,0 +1,9 @@
+td.column-sku,
+td.column-name {
+    color: #0073aa;
+    cursor: pointer;
+}
+td.column-sku:hover,
+td.column-name:hover {
+    color: #00a0d2;
+}
