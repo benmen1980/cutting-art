@@ -261,6 +261,7 @@ class WooAPI extends \PriorityAPI\API
 
                         $html  = '<input type="hidden" name="attach-list-nonce" value="' . wp_create_nonce('attach-list') . '" form="attach_list_form" />';
                         $html .= '<select name="price_list[' . $user_id . ']" onchange="window.attach_list_form.submit();" form="attach_list_form">';
+                            $html .= '<option value="no-selected" ' . selected("no-selected", $meta[0]) . '>No selected</option>';
                         foreach($lists as $list) {
 
                             $selected = (isset($meta[0]) && $meta[0] == $list['price_list_code']) ? 'selected' : '';
@@ -1003,6 +1004,8 @@ class WooAPI extends \PriorityAPI\API
 
             $meta = get_user_meta($user_id, '_priority_price_list');
 
+            if ($meta[0] === 'no-selected') return 'no-selected';
+
             $list = empty($meta) ? $this->basePriceCode : $meta[0]; // use base price list if there is no list assigned
 
             $data = $GLOBALS['wpdb']->get_row('
@@ -1028,7 +1031,7 @@ class WooAPI extends \PriorityAPI\API
     {
         $data = $this->getProductDataBySku($product->get_sku());
 
-        if ($data) return $data['price_list_price'];
+        if ($data && $data !== 'no-selected') return $data['price_list_price'];
         
         return $price;
     }
@@ -1042,7 +1045,9 @@ class WooAPI extends \PriorityAPI\API
 
         foreach($variations as $variation) {
 
-            if($data = $this->getProductDataBySku($variation['sku'])) {
+            $data = $this->getProductDataBySku($variation['sku']);
+
+            if ($data !== 'no-selected') {
                 $prices[] = $data['price_list_price'];
             }
 
