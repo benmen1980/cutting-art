@@ -60,6 +60,7 @@ class WC_DPM {
         add_action( 'woocommerce_payment_gateways_setting_column_default', array($this, 'wc_payment_gateways_setting_columns_default') );
 
         add_action( 'admin_enqueue_scripts', array($this, 'admin_enqueue_scripts') );
+        add_action( 'wp_enqueue_scripts', array($this, 'wp_enqueue_scripts') );
 
         add_action( 'show_user_profile', array($this, 'show_user_profile') );
         add_action( 'edit_user_profile', array($this, 'show_user_profile') );
@@ -72,7 +73,7 @@ class WC_DPM {
         add_action( 'wp_ajax_change_payment_method_for_user', array($this, 'change_payment_method_for_user') );
         add_action( 'wp_ajax_change_retail_price_proc_for_user', array($this, 'change_retail_price_proc_for_user') );
 
-        /*add_filter( 'raw_woocommerce_price', array($this, 'raw_woocommerce_price'), 1, 10);*/
+        add_filter( 'raw_woocommerce_price', array($this, 'raw_woocommerce_price'), 1, 10);
     }
 
     /**
@@ -80,10 +81,13 @@ class WC_DPM {
      * @return float|int
      */
     public function raw_woocommerce_price($price){
-        $user_id = get_current_user_id();
-        $price_proc = get_user_meta($user_id,'wcdpm_retail_price_proc', true);
-
-        return $price + $price * $price_proc / 100;
+        if (!is_admin()) {
+            $user_id = get_current_user_id();
+            $price_proc = get_user_meta($user_id,'wcdpm_retail_price_proc', true);
+            return $price + $price * $price_proc / 100;
+        } else {
+            return $price;
+        }
     }
 
     /**
@@ -172,13 +176,26 @@ class WC_DPM {
     }
 
     /**
+     * WP Enqueue Scripts
+     */
+    public function wp_enqueue_scripts() {
+
+        $user_id = get_current_user_id();
+        $price_proc = get_user_meta($user_id,'wcdpm_retail_price_proc', true);
+
+        wp_localize_script('jquery', 'wcdpm', ['retailPriceProc' => ($price_proc ? $price_proc : 0)]);
+
+        wp_enqueue_script('wcdpm-front-wc-js', plugins_url($this->js_folder_url . 'wcdpm-front-wc.js'), ['jquery'], $this->version, true);
+    }
+
+    /**
      * Add coloumn "Payment Method" to Users Table
      * @param $columns
      * @return array
      */
     public function manage_users_columns( $columns ) {
         $columns['payment-method'] = 'Payment Method';
-        /*$columns['retail-price-proc'] = 'Retail Price';*/
+        $columns['retail-price-proc'] = 'Retail Price';
         return $columns;
     }
 
