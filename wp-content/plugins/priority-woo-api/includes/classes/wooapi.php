@@ -914,12 +914,13 @@ class WooAPI extends \PriorityAPI\API
     }
 
     // filter products by user price list
-    public function filterProductsByPriceList()
+    public function filterProductsByPriceList($ids)
     {
-
         if($user_id = get_current_user_id()) {
 
             $meta = get_user_meta($user_id, '_priority_price_list');
+
+            if ($meta[0] === 'no-selected') return $ids;
 
             $list = empty($meta) ? $this->basePriceCode : $meta[0];
 
