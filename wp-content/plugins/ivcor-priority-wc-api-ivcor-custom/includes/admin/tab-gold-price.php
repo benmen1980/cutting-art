@@ -4,9 +4,9 @@
 
     $options = get_option('cutting_art_gold_price');
 
-    $gold_based_price = $options['gold_based_price'] ? $options['gold_based_price'] : '';
-    $current_gold_price = $options['current_gold_price'] ? $options['current_gold_price'] : '';
-    $extra_proc = $options['extra_proc'] ? $options['extra_proc'] : '';
+    $gold_based_price = $options['gold_based_price'] ? $options['gold_based_price'] : 0;
+    $current_gold_price = $options['current_gold_price'] ? $options['current_gold_price'] : 0;
+    $extra_proc = $options['extra_proc'] ? $options['extra_proc'] : 0;
 
     if ($_POST) {
         update_option('cutting_art_gold_price', $_POST);
@@ -61,15 +61,15 @@
                 <tbody>
                     <tr>
                         <th scope="row"><label for="gold_based_price">Gold Based Price</label></th>
-                        <td><input name="gold_based_price" type="text" id="gold_based_price" value="<?=$gold_based_price?>"></td>
+                        <td><input name="gold_based_price" type="number" id="gold_based_price" value="<?=$gold_based_price?>"></td>
                     </tr>
                     <tr>
                         <th scope="row"><label for="current_gold_price">Current Gold Price</label></th>
-                        <td><input name="current_gold_price" type="text" id="current_gold_price" value="<?=$current_gold_price?>"></td>
+                        <td><input name="current_gold_price" type="number" id="current_gold_price" value="<?=$current_gold_price?>"></td>
                     </tr>
                     <tr>
                         <th scope="row"><label for="extra_proc">extra %</label></th>
-                        <td><input name="extra_proc" type="text" id="extra_proc" value="<?=$extra_proc?>"></td>
+                        <td><input readonly name="extra_proc" type="number" id="extra_proc" value="<?=$extra_proc?>"></td>
                     </tr>
                 </tbody>
             </table>

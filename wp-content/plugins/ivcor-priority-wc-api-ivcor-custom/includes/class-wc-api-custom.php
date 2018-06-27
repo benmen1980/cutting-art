@@ -54,41 +54,81 @@ class WC_API_CUSTOM {
      */
     private function init_hooks() {
         add_action( 'admin_enqueue_scripts', array($this, 'admin_enqueue_scripts') );
+        add_action( 'wp_enqueue_scripts', array($this, 'wp_enqueue_scripts') );
 
         add_action( 'wp_ajax_wc_api_custom_get_admin_url_product', [$this, 'wc_api_custom_get_admin_url_product']);
 
-        add_action( 'admin_menu', [$this, 'admin_menu']);
+        add_action( 'admin_menu', [$this, 'admin_menu'], 99);
 
-        add_action( 'woocommerce_after_edit_attribute_fields', [$this, 'woocommerce_after_edit_attribute_fields']);
+        add_action( 'product_cat_add_form_fields', [$this, 'product_cat_add_form_fields'], 99, 2);
+        add_action( 'product_cat_edit_form_fields', [$this, 'product_cat_edit_form_fields'], 99, 2);
 
-        add_action( 'woocommerce_attribute_updated', [$this, 'woocommerce_attribute_updated'], 3, 10);
+        add_action('edited_product_cat', [$this, 'save_product_cat'], 10, 2);
+        add_action('create_product_cat', [$this, 'save_product_cat'], 10, 2);
+
+        add_filter('raw_woocommerce_price', [$this, 'raw_woocommerce_price'], 1, 1);
     }
 
-    public function woocommerce_attribute_updated( $attribute_id, $data, $old_slug) {
-        global $wpdb;
+    /**
+     * WP Enqueue Scripts
+     */
+    public function wp_enqueue_scripts() {
 
-        $table_name = "{$wpdb->prefix}woocommerce_termmeta";
+        if (!is_admin()) {
+            global $product;
+            global $wpdb;
+            $query = new WP_Query([
+                'name' => $product,
+                'post_type' => 'product',
+                'post_parent' => 0,
+                'fields' => 'ids'
+            ]);
+            $product_id = $query->posts[0];
 
-        $update = $wpdb->update( $table_name,
-            array( 'meta_key' => '_attribute_gold_price', 'meta_value' => $_POST['attribute_gold_price'] ? $_POST['attribute_gold_price'] : 0 ),
-            array( 'woocommerce_term_id' => $attribute_id )
-        );
+            $wc_product = new WC_Product($product_id);
+            $attributes = $wc_product->get_category_ids();
 
-        if ($update === 0) {
-            $wpdb->insert( $table_name,
-                array( 'woocommerce_term_id' => $attribute_id, 'meta_key' => '_attribute_gold_price', 'meta_value' => $_POST['attribute_gold_price'] ? $_POST['attribute_gold_price'] : 0 )
-            );
+            $gold = 0;
+            foreach ($attributes as $attribute_id) {
+                $gold = $wpdb->get_var(
+                    "SELECT meta_value FROM {$wpdb->prefix}woocommerce_termmeta WHERE woocommerce_term_id = {$attribute_id} AND meta_key = '_attribute_gold_price'"
+                );
+                if ($gold)
+                    break;
+            }
+
+            if ($gold) {
+                $options = get_option('cutting_art_gold_price');
+                $extra_proc = $options['extra_proc'] ? $options['extra_proc'] : 0;
+            } else {
+                $extra_proc = 0;
+            }
+        } else {
+            $extra_proc = 0;
         }
 
+        wp_localize_script('jquery', 'wcac', ['retailPriceProc' => $extra_proc, 'ajaxUrl' => admin_url('admin-ajax.php')]);
+        wp_enqueue_script('wcac-front-wc-js', plugins_url($this->js_folder_url . 'front-wc.js'), ['jquery'], $this->version, true);
     }
 
-    public function woocommerce_after_edit_attribute_fields() {
+    public function product_cat_add_form_fields() {
+        ?>
+        <div class="form-field">
+            <label for="attribute_gold_price"><?php esc_html_e( 'Gold Price', 'woocommerce' ); ?></label>
+            <input type="checkbox" name="attribute_gold_price" id="attribute_gold_price">
+            <p class="description"><?php esc_html_e( '', 'woocommerce' ); ?></p>
+        </div>
+        <?php
+    }
+
+    public function product_cat_edit_form_fields($term) {
+
         global $wpdb;
 
-        $attribute_id = absint( $_GET['edit'] );
+        $term_id = $term->term_id;
         $table_name = "{$wpdb->prefix}woocommerce_termmeta";
 
-        $attribute_gold_price = $wpdb->get_var( "SELECT meta_value FROM $table_name WHERE woocommerce_term_id = $attribute_id AND meta_key = '_attribute_gold_price'");
+        $attribute_gold_price = $wpdb->get_var( "SELECT meta_value FROM $table_name WHERE woocommerce_term_id = $term_id AND meta_key = '_attribute_gold_price'");
 
         ?>
         <tr class="form-field form-required">
@@ -103,6 +143,68 @@ class WC_API_CUSTOM {
         <?php
     }
 
+    public function save_product_cat($term_id) {
+        global $wpdb;
+
+        $table_name = "{$wpdb->prefix}woocommerce_termmeta";
+
+        if (isset($_POST['attribute_gold_price']) && $_POST['attribute_gold_price'] == 1) {
+            $update = $wpdb->update( $table_name,
+                array( 'meta_key' => '_attribute_gold_price', 'meta_value' => $_POST['attribute_gold_price'] ),
+                array( 'woocommerce_term_id' => $term_id )
+            );
+
+            if ($update === 0) {
+                $wpdb->insert( $table_name,
+                    array( 'woocommerce_term_id' => $term_id, 'meta_key' => '_attribute_gold_price', 'meta_value' => $_POST['attribute_gold_price'] )
+                );
+            }
+        } else {
+            $update = $wpdb->update( $table_name,
+                array( 'meta_key' => '_attribute_gold_price', 'meta_value' => 0 ),
+                array( 'woocommerce_term_id' => $term_id )
+            );
+
+            if ($update === 0) {
+                $wpdb->insert( $table_name,
+                    array( 'woocommerce_term_id' => $term_id, 'meta_key' => '_attribute_gold_price', 'meta_value' => 0 )
+                );
+            }
+        }
+    }
+
+    public function raw_woocommerce_price( $price ){
+
+        if (!is_admin()) {
+            global $product;
+            global $wpdb;
+            $wc_product = new WC_Product($product);
+            $attributes = $wc_product->get_category_ids();
+            $gold = 0;
+            foreach ($attributes as $attribute_id) {
+                $gold = $wpdb->get_var(
+                    "SELECT meta_value FROM {$wpdb->prefix}woocommerce_termmeta WHERE woocommerce_term_id = {$attribute_id} AND meta_key = '_attribute_gold_price'"
+                );
+                if ($gold)
+                    break;
+            }
+
+            if ($gold) {
+                $options = get_option('cutting_art_gold_price');
+                $extra_proc = $options['extra_proc'] ? $options['extra_proc'] : 0;
+                $price_proc = $price + $price * $extra_proc / 100;
+            } else {
+                $price_proc = $price;
+            }
+        } else {
+            $price_proc = $price;
+        }
+
+        wp_localize_script('jquery', 'wcac', ['retailPriceProc' => $extra_proc, 'ajaxUrl' => admin_url('admin-ajax.php')]);
+        wp_enqueue_script('wcac-front-wc-js');
+        return $price_proc;
+    }
+
     /**
      * Admin Enqueue Scripts
      */
@@ -110,14 +212,18 @@ class WC_API_CUSTOM {
 
         wp_localize_script('jquery', 'wc_api_custom', ['ajaxUrl' => admin_url('admin-ajax.php')]);
 
-        if ($_GET['page'] === 'priority-woocommerce-api') {
+        if (isset($_GET['page']) && $_GET['page'] === 'priority-woocommerce-api') {
             wp_enqueue_script('wc-api-custom-js', plugins_url($this->js_folder_url . 'admin-script.js'), ['jquery'], $this->version, true);
             wp_enqueue_style( 'wc-api-custom-css', plugins_url($this->css_folder_url . 'admin-style.css'), $this->version);
         }
 
-        if ($_GET['page'] === 'cutting-art') {
+        if (isset($_GET['page']) && $_GET['page'] === 'cutting-art') {
             wp_localize_script('jquery', 'wc_api_custom', ['tab_gold_price' => admin_url('admin.php?page=tab_gold_price')]);
             wp_enqueue_script('wc-api-custom-js-cutting-art', plugins_url($this->js_folder_url . 'admin-script-cutting-art.js'), ['jquery'], $this->version, true);
+        }
+
+        if (isset($_GET['page']) && $_GET['page'] === 'tab_gold_price') {
+            wp_enqueue_script('wc-api-custom-js-tab-gold-price', plugins_url($this->js_folder_url . 'admin-script-tab-gold-price.js'), ['jquery'], $this->version, true);
         }
     }
 
@@ -139,7 +245,7 @@ class WC_API_CUSTOM {
      * admin menu
      */
     public function admin_menu() {
-        add_submenu_page(NULL,'Gold Price', 'Gold Price', 'manage_options', 'tab_gold_price', [$this, 'tab_gold_price']);
+        add_submenu_page('cutting-art','Gold Price', 'Gold Price', 'manage_options', 'tab_gold_price', [$this, 'tab_gold_price']);
     }
 
     /**
