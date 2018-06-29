@@ -14,7 +14,7 @@ class WooAPI extends \PriorityAPI\API
     private static $instance; // api instance
     private $countries = []; // countries list
     private static $priceList = []; // price lists
-    private $basePriceCOde = "בסיס";
+    private $basePriceCode = "בסיס";
     /**
     * PriorityAPI initialize
     * 
@@ -37,11 +37,12 @@ class WooAPI extends \PriorityAPI\API
          * Schedule auto syncs
          */
         $syncs = [
-            'sync_items_priority'     => 'syncItemsPriority',
-            'sync_items_web'          => 'syncItemsWeb',
-            'sync_inventory_priority' => 'syncInventoryPriority',
-            'sync_pricelist_priority' => 'syncPriceLists',
-            'sync_receipts_priority'  => 'syncReceipts'
+            'sync_items_priority'           => 'syncItemsPriority',
+            'sync_items_priority_variation' => 'syncItemsPriorityVariation',
+            'sync_items_web'                => 'syncItemsWeb',
+            'sync_inventory_priority'       => 'syncInventoryPriority',
+            'sync_pricelist_priority'       => 'syncPriceLists',
+            'sync_receipts_priority'        => 'syncReceipts'
         ];
 
         foreach ($syncs as $hook => $action) {
@@ -119,6 +120,10 @@ class WooAPI extends \PriorityAPI\API
                     }
                      
                     if ($data['price_list_currency'] == 'ש"ח') {
+                        return 'ILS';
+                    }
+
+                    if ($data['price_list_currency'] == 'שח') {
                         return 'ILS';
                     }
     
@@ -307,14 +312,16 @@ class WooAPI extends \PriorityAPI\API
 
                 $this->updateOption('log_items_priority',           $this->post('log_items_priority'));
                 $this->updateOption('auto_sync_items_priority',     $this->post('auto_sync_items_priority'));
+                $this->updateOption('log_items_priority_variation', $this->post('log_items_priority_variation'));
+                $this->updateOption('auto_sync_items_priority_variation',     $this->post('auto_sync_items_priority_variation'));
                 $this->updateOption('log_items_web',                $this->post('log_items_web'));
                 $this->updateOption('auto_sync_items_web',          $this->post('auto_sync_items_web'));
                 $this->updateOption('log_inventory_priority',       $this->post('log_inventory_priority'));
                 $this->updateOption('auto_sync_inventory_priority', $this->post('auto_sync_inventory_priority'));
                 $this->updateOption('log_pricelist_priority',       $this->post('log_pricelist_priority'));
                 $this->updateOption('auto_sync_pricelist_priority', $this->post('auto_sync_pricelist_priority'));
-                $this->updateOption('log_receipts_priority',       $this->post('log_receipts_priority'));
-                $this->updateOption('auto_sync_receipts_priority', $this->post('auto_sync_receipts_priority'));
+                $this->updateOption('log_receipts_priority',        $this->post('log_receipts_priority'));
+                $this->updateOption('auto_sync_receipts_priority',  $this->post('auto_sync_receipts_priority'));
                 $this->updateOption('log_customers_web',            $this->post('log_customers_web'));
                 $this->updateOption('log_shipping_methods',         $this->post('log_shipping_methods'));
                 $this->updateOption('log_orders_web',               $this->post('log_orders_web'));
@@ -385,6 +392,15 @@ class WooAPI extends \PriorityAPI\API
 
                     try {
                         $this->syncItemsPriority();
+                    } catch(Exception $e) {
+                        exit(json_encode(['status' => 0, 'msg' => $e->getMessage()]));
+                    }
+
+                    break;
+                case 'sync_items_priority_variation':
+
+                    try {
+                        $this->syncItemsPriorityVariation();
                     } catch(Exception $e) {
                         exit(json_encode(['status' => 0, 'msg' => $e->getMessage()]));
                     }
@@ -519,6 +535,152 @@ class WooAPI extends \PriorityAPI\API
 
             // add timestamp
             $this->updateOption('items_priority_update', time());
+
+        }
+
+    }
+
+    /**
+     * sync items width variation from priority
+     */
+    public function syncItemsPriorityVariation()
+    {
+
+        $response = $this->makeRequest('GET', 'LOGPART?$expand=PARTUNSPECS_SUBFORM', [], $this->option('log_items_priority_variation', true));
+
+        // check response status
+        if ($response['status']) {
+
+            $response_data = json_decode($response['body_raw'], true);
+
+            $product_attributes = [];
+            $product_titles = [];
+            $parents = [];
+            $childrens = [];
+
+            foreach($response_data['value'] as $item) {
+                if ($item['ROYL_MODEL'] === '-') {
+                    $parents[$item['PARTNAME']] = [
+                        'sku'       => $item['PARTNAME'],
+                        'crosssell' => $item['PARTDES'],
+                        'title'     => $item['PARTDES'],
+                        'stock'     => $item['INVFLAG'],
+                        'variation' => []
+                    ];
+                } else {
+                    $attributes = [];
+                    if ($item['PARTUNSPECS_SUBFORM']) {
+                        foreach ($item['PARTUNSPECS_SUBFORM'] as $attr) {
+                            $attributes[$attr['SPECNAME']] = $attr['ROYY_VALUEDES'];
+                            if ($attr['VALUE'] && in_array($attr['SPECNAME'], ['Material Thi', 'Chain Type', 'Size']))
+                                $product_attributes[$attr['SPECNAME']][$attr['ROYY_VALUEDES']] = $attr['ROYY_VALUEDES'];
+                        }
+                    }
+
+                    if ($attributes) {
+
+                        $childrens[$item['ROYL_MODEL']][$item['PARTNAME']] = [
+                            'sku'           => $item['PARTNAME'],
+                            'regular_price' => $item['BASEPLPRICE'],
+                            'stock'         => $item['INVFLAG'],
+                            'parent_title'  => $item['ROYL_SPECEDES2'],
+                            'title'         => $item['ROYL_SPECDES1'],
+                            'stock'         => ($item['INVFLAG'] == 'Y') ? 'instock' : 'outofstock',
+                            'categories'    => [
+                                $attributes['Material'],
+                                $item['FAMILYDES']
+                            ],
+                            'attributes'    => [
+                                'material-thi'  => $attributes['Material Thi'],
+                                'chain-type'    => $attributes['Chain Type'],
+                                'size'          => $attributes['Size'],
+                            ]
+                        ];
+                    }
+                }
+            }
+
+            foreach ($parents as $partname => $value) {
+                if (count($childrens[$partname])) {
+                    $parents[$partname]['categories'] = end($childrens[$partname])['categories'];
+                    $parents[$partname]['variation']  = $childrens[$partname];
+                    $parents[$partname]['title']      = end($childrens[$partname])['parent_title'] . ' ' .$parents[$partname]['title'];
+                    $product_titles[$value['title']][] = $partname;
+                } else {
+                    unset($parents[$partname]);
+                }
+            }
+
+            if ($product_attributes) {
+                foreach ($product_attributes as $key => $product_attribute) {
+                    $product_attributes[$key] = array_keys($product_attribute);
+                }
+            }
+
+            if ($parents) {
+
+                foreach ($parents as $sku_parent => $parent) {
+
+                    $id = create_product_variable( array(
+                        'author'        => '', // optional
+                        'title'         => $parent['title'],
+                        'content'       => '',
+                        'excerpt'       => '',
+                        'regular_price' => '', // product regular price
+                        'sale_price'    => '', // product sale price (optional)
+                        'stock'         => $parent['stock'], // Set a minimal stock quantity
+                        'image_id'      => '', // optional
+                        'gallery_ids'   => array(), // optional
+                        'sku'           => $sku_parent, // optional
+                        'tax_class'     => '', // optional
+                        'weight'        => '', // optional
+                        // For NEW attributes/values use NAMES (not slugs)
+                        'attributes'    => $product_attributes,
+                        'categories'    => $parent['categories']
+                    ) );
+
+                    $parents[$sku_parent]['product_id'] = $id;
+
+                    foreach ($parent['variation'] as $sku_children => $children) {
+
+                        // The variation data
+                        $variation_data =  array(
+                            'attributes'    => $children['attributes'],
+                            'sku'           => $sku_children,
+                            'regular_price' => $children['regular_price'],
+                            'sale_price'    => '',
+                            'stock'         => $children['stock'],
+                        );
+
+                        // The function to be run
+                        create_product_variation( $id, $variation_data );
+
+                    }
+
+                    unset( $parents[$sku_parent]['variation']);
+
+                }
+
+                foreach ($product_titles as $title => $product_title) {
+                    foreach ($product_title as $key => $sku) {
+                        $product_titles[$title][$key] = $parents[$sku]['product_id'];
+                    }
+                }
+
+                foreach ($parents as $sku_parent => $parent) {
+                    $cross_sells = $product_titles[$parent['crosssell']];
+
+                    if (($key = array_search($parent['product_id'], $cross_sells)) !== false) {
+                        unset($cross_sells[$key]);
+                    }
+
+                    update_post_meta($parent['product_id'], '_crosssell_ids', $cross_sells);
+                }
+
+            }
+
+            // add timestamp
+            $this->updateOption('items_priority_variation_update', time());
 
         }
 

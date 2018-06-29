@@ -93,3 +93,5 @@ add_action('plugins_loaded', function(){
     }
 
 });
+
+include_once dirname(__FILE__) . '/includes/wc_variation_product.php';
