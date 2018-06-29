@@ -29,3 +29,6 @@
 textarea.textarea {
     width: 100%;
 }
+#backtoblog a:first-child{
+    display: none !important;
+}
