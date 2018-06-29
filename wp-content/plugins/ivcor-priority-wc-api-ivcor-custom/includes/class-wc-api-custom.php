@@ -109,6 +109,8 @@ class WC_API_CUSTOM {
 
         wp_localize_script('jquery', 'wcac', ['retailPriceProc' => $extra_proc, 'ajaxUrl' => admin_url('admin-ajax.php')]);
         wp_enqueue_script('wcac-front-wc-js', plugins_url($this->js_folder_url . 'front-wc.js'), ['jquery'], $this->version, true);
+
+        wp_enqueue_style( 'wc-api-front-custom-css', plugins_url($this->css_folder_url . 'front-style.css'), $this->version);
     }
 
     public function product_cat_add_form_fields() {
