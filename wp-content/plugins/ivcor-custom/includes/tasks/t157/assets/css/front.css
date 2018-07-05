@@ -1,0 +1,7 @@
+.product-type-variable p.price,
+.woocommerce-variation-price {
+    display: none;
+}
+.tc-epo-totals {
+    display: none !important;
+}
