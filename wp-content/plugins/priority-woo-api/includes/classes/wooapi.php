@@ -865,7 +865,7 @@ class WooAPI extends \PriorityAPI\API
             $meta = get_user_meta($id);
 
             $json_request = json_encode([
-                'CUSTNAME'    => ($user->data->ID == 0) ? $this->option('walkin_number') : (string) $user->data->ID, // walkin customer or registered one
+                'CUSTNAME'    => ($meta['_priority_customer_number']) ? $meta['_priority_customer_number'][0] : (($user->data->ID == 0) ? $this->option('walkin_number') : (string) $user->data->ID), // walkin customer or registered one
                 'CUSTDES'     => isset($meta['first_name'], $meta['last_name']) ? $meta['first_name'][0] . ' ' . $meta['last_name'][0] : '',
                 'EMAIL'       => $user->data->user_email,
                 'ADDRESS'     => isset($meta['billing_address_1']) ? $meta['billing_address_1'][0] : '',
@@ -912,8 +912,15 @@ class WooAPI extends \PriorityAPI\API
     {
         $order = new \WC_Order($id);
 
+        if ($order->get_customer_id()) {
+            $meta = get_user_meta($order->get_customer_id());
+            $cust_number = ($meta['_priority_customer_number']) ? $meta['_priority_customer_number'][0] : $this->option('walkin_number');
+        } else {
+            $cust_number = $this->option('walkin_number');
+        }
+
         $data = [
-            'CUSTNAME' => ( ! $order->get_customer_id()) ? $this->option('walkin_number') : (string) $order->get_customer_id(),
+            'CUSTNAME' => (string) $cust_number,
             'CDES'     => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
             'CURDATE'  => date('Y-m-d', strtotime($order->get_date_created())),
             'BOOKNUM'  => $order->get_order_number()
