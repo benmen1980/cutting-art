@@ -338,6 +338,25 @@ class API
         
     }
 
+    /**
+     * t149 Send Email Error
+     */
+    public function sendEmailError($emails, $subject = '', $error = '')
+    {
+        if (!$emails) return;
+
+        if ($emails && !is_array($emails)) {
+            $pattern ="/[\._a-zA-Z0-9-]+@[\._a-zA-Z0-9-]+/i";
+            preg_match_all($pattern, $emails, $result);
+            $emails = $result[0];
+        }
+        $to = array_unique($emails);
+        $headers = [
+            'content-type: text/html'
+        ];
+
+        wp_mail( $to, $subject, $error, $headers );
+    }
 
     // decode unicode hebrew text
     public function decodeHebrew($string)

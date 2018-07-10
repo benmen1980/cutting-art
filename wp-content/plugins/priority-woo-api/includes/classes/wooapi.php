@@ -126,7 +126,7 @@ class WooAPI extends \PriorityAPI\API
                     if ($data['price_list_currency'] == 'שח') {
                         return 'ILS';
                     }
-    
+
                     return $data['price_list_currency'];
         
                 }, 9999);
@@ -310,22 +310,30 @@ class WooAPI extends \PriorityAPI\API
             // save sync settings
             if ($this->post('p18aw-save-sync') && wp_verify_nonce($this->post('p18aw-nonce'), 'save-sync')) {
 
-                $this->updateOption('log_items_priority',           $this->post('log_items_priority'));
-                $this->updateOption('auto_sync_items_priority',     $this->post('auto_sync_items_priority'));
-                $this->updateOption('log_items_priority_variation', $this->post('log_items_priority_variation'));
-                $this->updateOption('auto_sync_items_priority_variation',     $this->post('auto_sync_items_priority_variation'));
-                $this->updateOption('log_items_web',                $this->post('log_items_web'));
-                $this->updateOption('auto_sync_items_web',          $this->post('auto_sync_items_web'));
-                $this->updateOption('log_inventory_priority',       $this->post('log_inventory_priority'));
-                $this->updateOption('auto_sync_inventory_priority', $this->post('auto_sync_inventory_priority'));
-                $this->updateOption('log_pricelist_priority',       $this->post('log_pricelist_priority'));
-                $this->updateOption('auto_sync_pricelist_priority', $this->post('auto_sync_pricelist_priority'));
-                $this->updateOption('log_receipts_priority',        $this->post('log_receipts_priority'));
-                $this->updateOption('auto_sync_receipts_priority',  $this->post('auto_sync_receipts_priority'));
-                $this->updateOption('log_customers_web',            $this->post('log_customers_web'));
-                $this->updateOption('log_shipping_methods',         $this->post('log_shipping_methods'));
-                $this->updateOption('log_orders_web',               $this->post('log_orders_web'));
-                $this->updateOption('sync_onorder_receipts',        $this->post('sync_onorder_receipts'));
+                $this->updateOption('log_items_priority',                   $this->post('log_items_priority'));
+                $this->updateOption('auto_sync_items_priority',             $this->post('auto_sync_items_priority'));
+                $this->updateOption('email_error_sync_items_priority',      $this->post('email_error_sync_items_priority'));
+                $this->updateOption('log_items_priority_variation',         $this->post('log_items_priority_variation'));
+                $this->updateOption('auto_sync_items_priority_variation',   $this->post('auto_sync_items_priority_variation'));
+                $this->updateOption('email_error_sync_items_priority_variation',      $this->post('email_error_sync_items_priority_variation'));
+                $this->updateOption('log_items_web',                        $this->post('log_items_web'));
+                $this->updateOption('auto_sync_items_web',                  $this->post('auto_sync_items_web'));
+                $this->updateOption('email_error_sync_items_web',           $this->post('email_error_sync_items_web'));
+                $this->updateOption('log_inventory_priority',               $this->post('log_inventory_priority'));
+                $this->updateOption('auto_sync_inventory_priority',         $this->post('auto_sync_inventory_priority'));
+                $this->updateOption('email_error_sync_inventory_priority',  $this->post('email_error_sync_inventory_priority'));
+                $this->updateOption('log_pricelist_priority',               $this->post('log_pricelist_priority'));
+                $this->updateOption('auto_sync_pricelist_priority',         $this->post('auto_sync_pricelist_priority'));
+                $this->updateOption('email_error_sync_pricelist_priority',  $this->post('email_error_sync_pricelist_priority'));
+                $this->updateOption('log_receipts_priority',                $this->post('log_receipts_priority'));
+                $this->updateOption('auto_sync_receipts_priority',          $this->post('auto_sync_receipts_priority'));
+                $this->updateOption('email_error_sync_receipts_priority',   $this->post('email_error_sync_receipts_priority'));
+                $this->updateOption('log_customers_web',                    $this->post('log_customers_web'));
+                $this->updateOption('email_error_sync_customers_web',       $this->post('email_error_sync_customers_web'));
+                $this->updateOption('log_shipping_methods',                 $this->post('log_shipping_methods'));
+                $this->updateOption('log_orders_web',                       $this->post('log_orders_web'));
+                $this->updateOption('email_error_sync_orders_web',          $this->post('email_error_sync_orders_web'));
+                $this->updateOption('sync_onorder_receipts',                $this->post('sync_onorder_receipts'));
 
                 $this->notify('Sync settings saved');
             }
@@ -476,6 +484,35 @@ class WooAPI extends \PriorityAPI\API
 
 
         });
+
+        // ajax action for manual syncs
+        add_action('wp_ajax_p18aw_request_error', function(){
+
+            $url = sprintf('https://%s/odata/Priority/%s/%s/%s',
+                $this->option('url'),
+                $this->option('application'),
+                $this->option('environment'),
+                ''
+            );
+
+            $GLOBALS['wpdb']->insert($GLOBALS['wpdb']->prefix . 'p18a_logs', [
+                'blog_id'        => get_current_blog_id(),
+                'timestamp'      => current_time('mysql'),
+                'url'            => $url,
+                'request_method' => 'GET',
+                'json_request'   => '',
+                'json_response'  => 'AJAX ERROR ' . $_POST['msg'],
+                'json_status'    => 0
+            ]);
+
+            $this->sendEmailError(
+                $this->option('email_error_' . $_POST['sync']),
+                'Error ' . ucwords(str_replace('_',' ', $_POST['sync'])),
+                'AJAX ERROR<br>' . $_POST['msg']
+            );
+
+            exit(json_encode(['status' => 1, 'timestamp' => date('d/m/Y H:i:s')]));
+        });
         
 
     }  
@@ -535,6 +572,16 @@ class WooAPI extends \PriorityAPI\API
 
             // add timestamp
             $this->updateOption('items_priority_update', time());
+
+        } else {
+            /**
+             * t149
+             */
+            $this->sendEmailError(
+                $this->option('email_error_sync_items_priority'),
+                'Error Sync Items Priority',
+                $response['body']
+            );
 
         }
 
@@ -682,6 +729,16 @@ class WooAPI extends \PriorityAPI\API
             // add timestamp
             $this->updateOption('items_priority_variation_update', time());
 
+        } else {
+            /**
+             * t149
+             */
+            $this->sendEmailError(
+                $this->option('email_error_sync_items_priority_variation'),
+                'Error Sync Items Priority Variation',
+                $response['body']
+            );
+
         }
 
     }
@@ -695,6 +752,18 @@ class WooAPI extends \PriorityAPI\API
     {
         // get all items from priority
         $response = $this->makeRequest('GET', 'LOGPART');
+
+        if (!$response['status']) {
+            /**
+             * t149
+             */
+            $this->sendEmailError(
+                $this->option('email_error_sync_items_web'),
+                'Error Sync Items Web',
+                $response['body']
+            );
+
+        }
 
         $data = json_decode($response['body_raw'], true);
 
@@ -768,6 +837,16 @@ class WooAPI extends \PriorityAPI\API
             // add timestamp
             $this->updateOption('inventory_priority_update', time());
 
+        } else {
+            /**
+             * t149
+             */
+            $this->sendEmailError(
+                $this->option('email_error_sync_inventory_priority'),
+                'Error Sync Inventory Priority',
+                $response['body']
+            );
+
         }
 
     }
@@ -804,6 +883,16 @@ class WooAPI extends \PriorityAPI\API
             // set priority customer id
             if ($response['status']) {
                 add_user_meta($id, '_priority_customer_number', $id, true); 
+            } else {
+                /**
+                 * t149
+                 */
+                $this->sendEmailError(
+                    $this->option('email_error_sync_customers_web'),
+                    'Error Sync Customers',
+                    $response['body']
+                );
+
             }
     
             // add timestamp
@@ -938,7 +1027,18 @@ class WooAPI extends \PriorityAPI\API
         ];
 
         // make request
-        $this->makeRequest('POST', 'ORDERS', ['body' => json_encode($data)], $this->option('log_orders_web', true));
+        $response = $this->makeRequest('POST', 'ORDERS', ['body' => json_encode($data)], $this->option('log_orders_web', true));
+
+        if (!$response['status']) {
+            /**
+             * t149
+             */
+            $this->sendEmailError(
+            $this->option('email_error_sync_orders_web'),
+            'Error Sync Orders',
+            $response['body']
+            );
+        }
 
         // add timestamp
         $this->updateOption('orders_web_update', time());
@@ -1033,6 +1133,15 @@ class WooAPI extends \PriorityAPI\API
 
             }
 
+        } else {
+            /**
+             * t149
+             */
+            $this->sendEmailError(
+                $this->option('email_error_sync_pricelist_priority'),
+                'Error Sync Price Lists Priority',
+                $response['body']
+            );
 
         }
 
@@ -1076,8 +1185,17 @@ class WooAPI extends \PriorityAPI\API
 
 
         // make request
-        $this->makeRequest('POST', 'TINVOICES', ['body' => json_encode($data)], $this->option('log_receipts_priority', true));
-
+        $response = $this->makeRequest('POST', 'TINVOICES', ['body' => json_encode($data)], $this->option('log_receipts_priority', true));
+        if (!$response['status']) {
+            /**
+             * t149
+             */
+            $this->sendEmailError(
+                $this->option('email_error_sync_receipts_priority'),
+                'Error Sync Receipts',
+                $response['body']
+            );
+        }
         // add timestamp
         $this->updateOption('receipts_priority_update', time());
         

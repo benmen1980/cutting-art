@@ -19,6 +19,7 @@
                 <td><strong><?php _e('Auto sync', 'p18a'); ?></strong></td>
                 <td><strong><?php _e('Last sync', 'p18a'); ?></strong></td>
                 <td><strong><?php _e('Manual sync', 'p18a'); ?></strong></td>
+                <td><strong><?php _e('Error Emails', 'p18a'); ?></strong></td>
             </tr>
 
             <tr>
@@ -48,6 +49,42 @@
                 </td>
                 <td>
                     <a href="#" class="button p18aw-sync" data-sync="sync_items_priority"><?php _e('Sync', 'p18a'); ?></a>
+                </td>
+                <td>
+                    <textarea style="width: 250px; height: 70px;" name="email_error_sync_items_priority" form="p18aw-sync"><?=$this->option('email_error_sync_items_priority')?></textarea>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="p18a-label">
+                    <?php _e('Items Priority Variation > Web', 'p18a'); ?>
+                </td>
+                <td>
+                    <input type="checkbox" name="log_items_priority_variation" form="p18aw-sync" value="1" <?php if($this->option('log_items_priority_variation')) echo 'checked'; ?> />
+                </td>
+                <td></td>
+                <td>
+                    <select name="auto_sync_items_priority_variation" form="p18aw-sync">
+                        <option value="" <?php if( ! $this->option('auto_sync_items_priority_variation')) echo 'selected'; ?>><?php _e('None', 'p18a'); ?></option>
+                        <option value="hourly" <?php if($this->option('auto_sync_items_priority_variation') == 'hourly') echo 'selected'; ?>><?php _e('Every hour', 'p18a'); ?></option>
+                        <option value="daily" <?php if($this->option('auto_sync_items_priority_variation') == 'daily') echo 'selected'; ?>><?php _e('Once a day', 'p18a'); ?></option>
+                        <option value="twicedaily" <?php if($this->option('auto_sync_items_priority_variation') == 'twicedaily') echo 'selected'; ?>><?php _e('Twice a day', 'p18a'); ?></option>
+                    </select>
+                </td>
+                <td data-sync-time="sync_items_priority_variation">
+                    <?php
+                    if ($timestamp = $this->option('items_priority_variation_update', false)) {
+                        echo(date('d/m/Y H:i:s', $timestamp));
+                    } else {
+                        _e('Never', 'p18a');
+                    }
+                    ?>
+                </td>
+                <td>
+                    <a href="#" class="button p18aw-sync" data-sync="sync_items_priority_variation"><?php _e('Sync', 'p18a'); ?></a>
+                </td>
+                <td>
+                    <textarea style="width: 250px; height: 70px;" name="email_error_sync_items_priority_variation" form="p18aw-sync"><?=$this->option('email_error_sync_items_priority_variation')?></textarea>
                 </td>
             </tr>
 
@@ -80,6 +117,9 @@
                 <td>
                     <a href="#" class="button p18aw-sync" data-sync="sync_items_web"><?php _e('Sync', 'p18a'); ?></a>
                 </td>
+                <td>
+                    <textarea style="width: 250px; height: 70px;" name="email_error_sync_items_web" form="p18aw-sync"><?=$this->option('email_error_sync_items_web')?></textarea>
+                </td>
             </tr>
 
             <tr>
@@ -109,6 +149,9 @@
                 </td>
                 <td>
                     <a href="#" class="button p18aw-sync" data-sync="sync_inventory_priority"><?php _e('Sync', 'p18a'); ?></a>
+                </td>
+                <td>
+                    <textarea style="width: 250px; height: 70px;" name="email_error_sync_inventory_priority" form="p18aw-sync"><?=$this->option('email_error_sync_inventory_priority')?></textarea>
                 </td>
             </tr>
 
@@ -140,6 +183,9 @@
                 </td>
                 <td>
                     <a href="#" class="button p18aw-sync" data-sync="sync_pricelist_priority"><?php _e('Sync', 'p18a'); ?></a>
+                </td>
+                <td>
+                    <textarea style="width: 250px; height: 70px;" name="email_error_sync_pricelist_priority" form="p18aw-sync"><?=$this->option('email_error_sync_pricelist_priority')?></textarea>
                 </td>
             </tr>
 
@@ -175,6 +221,9 @@
                 <td>
                     <a href="#" class="button p18aw-sync" data-sync="sync_receipts_priority"><?php _e('Sync', 'p18a'); ?></a>
                 </td>
+                <td>
+                    <textarea style="width: 250px; height: 70px;" name="email_error_sync_receipts_priority" form="p18aw-sync"><?=$this->option('email_error_sync_receipts_priority')?></textarea>
+                </td>
             </tr>
 
 
@@ -200,6 +249,9 @@
                 <td>
                     <a href="#" class="button p18aw-sync" data-sync="sync_customers_web"><?php _e('Sync', 'p18a'); ?></a>
                 </td>
+                <td>
+                    <textarea style="width: 250px; height: 70px;" name="email_error_sync_customers_web" form="p18aw-sync"><?=$this->option('email_error_sync_customers_web')?></textarea>
+                </td>
             </tr>
         
             <tr>
@@ -208,6 +260,9 @@
                 </td>
                 <td colspan="5">
                     <input type="checkbox" name="log_orders_web" form="p18aw-sync" value="1" <?php if($this->option('log_orders_web')) echo 'checked'; ?> />
+                </td>
+                <td>
+                    <textarea style="width: 250px; height: 70px;" name="email_error_sync_orders_web" form="p18aw-sync"><?=$this->option('email_error_sync_orders_web')?></textarea>
                 </td>
             </tr>
 
