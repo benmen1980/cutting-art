@@ -974,24 +974,19 @@ class WooAPI extends \PriorityAPI\API
 
                 /*start T151*/
                 $new_data = [];
-                $items = $order->get_items();
-                if ($items) {
 
-                    foreach ($items as $item_id => $item) {
+                $item_meta = wc_get_order_item_meta($item->get_id(),'_tmcartepo_data');
 
-                        $item_meta = wc_get_order_item_meta($item_id,'_tmcartepo_data');
-
-                        if ($item_meta && is_array($item_meta)) {
-                            foreach ($item_meta as $tm_item) {
-                                $new_data[] = [
-                                    'SPEC' => addslashes($tm_item['name']),
-                                    'VALUE' => addslashes($tm_item['value'])
-                                ];
-                            }
-                        }
-
+                if ($item_meta && is_array($item_meta)) {
+                    foreach ($item_meta as $tm_item) {
+                        $new_data[] = [
+                            'SPEC' => addslashes($tm_item['name']),
+                            'VALUE' => addslashes($tm_item['value'])
+                        ];
                     }
                 }
+
+
                 /*end T151*/
 
                 $data['ORDERITEMS_SUBFORM'][] = [
