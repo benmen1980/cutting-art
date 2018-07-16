@@ -1,0 +1,10 @@
+.woocommerce-billing-fields {
+    display: none;
+}
+.woocommerce-checkout-review-order-table thead,
+.woocommerce-checkout-review-order-table tbody {
+    display: none;
+}
+input.shipping_method {
+    display: none;
+}
