@@ -1,0 +1,6 @@
+.no-default .status-enabled::before {
+    content: "" !important;
+    border-radius: 50%;
+    border: 1px solid #a46497;
+    cursor: pointer;
+}
