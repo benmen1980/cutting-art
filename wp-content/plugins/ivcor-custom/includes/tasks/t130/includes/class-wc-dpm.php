@@ -105,14 +105,16 @@ class WC_DPM {
         $user_id = get_current_user_id();
         if (current_user_can('customer') || current_user_can('administrator') || current_user_can('shop_manager')) {
             $user_retail_price_proc = get_user_meta($user_id, 'wcdpm_retail_price_proc', true);
-            $procs = range(0, 100, 5);
+            $user_retail_price_proc = $user_retail_price_proc ? $user_retail_price_proc : 0;
+            /*$procs = range(0, 100, 5);
             $options = '';
             $selected = selected($user_retail_price_proc, '0', 0);
             foreach ($procs as $proc) {
                 $selected = selected($user_retail_price_proc, $proc, 0);
                 $options .= "<option value='{$proc}' {$selected}>{$proc}%</option>";
             }
-            $html = "Retail Price: <select user-id='{$user_id}' class='change-retail-price-proc-for-user'>{$options}</select>";
+            $html = "Retail Price: <select user-id='{$user_id}' class='change-retail-price-proc-for-user'>{$options}</select>";*/
+            $html = "Retail Price: <input class='input-retail-price-proc-for-user' user-id='{$user_id}' min='0' max='500' style='width: 70px' type='number' value='{$user_retail_price_proc}'> <a style='cursor: pointer' class='input-retail-price-proc-for-user-save'>Save</a>";
             echo $html;
         }
     }
@@ -268,14 +270,16 @@ class WC_DPM {
                 break;
             case 'retail-price-proc' :
                 $user_retail_price_proc = get_user_meta($user_id,'wcdpm_retail_price_proc', true);
-                $procs = range(0,100,5);
+                $user_retail_price_proc = $user_retail_price_proc ? $user_retail_price_proc : 0;
+                /*$procs = range(0,100,5);
                 $options = '';
                 $selected = selected($user_retail_price_proc, '0', 0);
                 foreach ($procs as $proc) {
                     $selected = selected($user_retail_price_proc, $proc, 0);
                     $options .= "<option value='{$proc}' {$selected}>{$proc}%</option>";
                 }
-                return "<select user-id='{$user_id}' class='change-retail-price-proc-for-user'>{$options}</select>";
+                return "<select user-id='{$user_id}' class='change-retail-price-proc-for-user'>{$options}</select>";*/
+                return "<input class='input-retail-price-proc-for-user' user-id='{$user_id}' min='0' max='500' style='width: 70px' type='number' value='{$user_retail_price_proc}'> <a style='cursor: pointer' class='input-retail-price-proc-for-user-save'>Save</a>";
                 break;
             default:
         }
