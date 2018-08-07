@@ -52,7 +52,7 @@ class WooAPI extends \PriorityAPI\API
                 add_action($hook, [$this, $action]);
 
                 if ( ! wp_next_scheduled($hook)) {
-                    wp_schedule_event(time(), $this->option('auto_' . $hook), $hook); 
+                    wp_schedule_event(time(), $this->option('auto_' . $hook), $hook);
                 }
 
             }
@@ -608,39 +608,36 @@ class WooAPI extends \PriorityAPI\API
     public function syncItemsPriorityVariation()
     {
 
-        $response = $this->makeRequest('GET', 'LOGPART?$expand=PARTUNSPECS_SUBFORM', [], $this->option('log_items_priority_variation', true));
+        $response = $this->makeRequest('GET', 'LOGPART?$expand=PARTUNSPECS_SUBFORM&$filter=ROYY_ISUDATE eq \'Y\'', [], $this->option('log_items_priority_variation', true));
 
         // check response status
         if ($response['status']) {
 
             $response_data = json_decode($response['body_raw'], true);
 
-            $product_attributes = [];
-            $product_titles = [];
+            $product_cross_sells = [];
             $parents = [];
             $childrens = [];
 
             foreach($response_data['value'] as $item) {
-                if ($item['ROYL_MODEL'] === '-') {
-                    $parents[$item['PARTNAME']] = [
-                        'sku'       => $item['PARTNAME'],
-                        'crosssell' => $item['PARTDES'],
-                        'title'     => $item['PARTDES'],
-                        'stock'     => $item['INVFLAG'],
-                        'variation' => []
-                    ];
-                } else {
+                if ($item['ROYL_MODEL'] !== '-') {
                     $attributes = [];
                     if ($item['PARTUNSPECS_SUBFORM']) {
                         foreach ($item['PARTUNSPECS_SUBFORM'] as $attr) {
-                            $attributes[$attr['SPECNAME']] = $attr['ROYY_VALUEDES'];
-                            if ($attr['VALUE'] && in_array($attr['SPECNAME'], ['Material Thi', 'Chain Type', 'Size']))
-                                $product_attributes[$attr['SPECNAME']][$attr['ROYY_VALUEDES']] = $attr['ROYY_VALUEDES'];
+                            if ($attr['SPECNAME'] !== 'Material')
+                                $attributes[$attr['SPECNAME']] = $attr['ROYY_VALUEDES'];
                         }
                     }
 
                     if ($attributes) {
-
+                        $cross_sells = explode('-', $item['ROYL_MODEL']);
+                        $parents[$item['ROYL_MODEL']] = [
+                            'sku'         => $item['ROYL_MODEL'],
+                            'cross_sells' => $cross_sells[0] . '-' . $cross_sells[1],
+                            'title'       => $item['ROYL_SPECDES1'],
+                            'stock'       => 'Y',
+                            'variation'   => []
+                        ];
                         $childrens[$item['ROYL_MODEL']][$item['PARTNAME']] = [
                             'sku'           => $item['PARTNAME'],
                             'regular_price' => $item['BASEPLPRICE'],
@@ -648,15 +645,16 @@ class WooAPI extends \PriorityAPI\API
                             'parent_title'  => $item['ROYL_SPECEDES2'],
                             'title'         => $item['ROYL_SPECDES1'],
                             'stock'         => ($item['INVFLAG'] == 'Y') ? 'instock' : 'outofstock',
-                            'categories'    => [
-                                $attributes['Material'],
+                            'tags'          => [
+                                $item['ROYL_SPECEDES1'],
+                                $item['ROYL_SPECEDES2'],
                                 $item['FAMILYDES']
                             ],
-                            'attributes'    => [
-                                'material-thi'  => $attributes['Material Thi'],
-                                'chain-type'    => $attributes['Chain Type'],
-                                'size'          => $attributes['Size'],
-                            ]
+                            'categories'    => [
+                                $item['ROYL_SPECDES2'],
+                                $item['FAMILYDES']
+                            ],
+                            'attributes'    => $attributes
                         ];
                     }
                 }
@@ -664,18 +662,19 @@ class WooAPI extends \PriorityAPI\API
 
             foreach ($parents as $partname => $value) {
                 if (count($childrens[$partname])) {
-                    $parents[$partname]['categories'] = end($childrens[$partname])['categories'];
-                    $parents[$partname]['variation']  = $childrens[$partname];
-                    $parents[$partname]['title']      = end($childrens[$partname])['parent_title'] . ' ' .$parents[$partname]['title'];
-                    $product_titles[$value['title']][] = $partname;
+                    $parents[$partname]['categories']  = end($childrens[$partname])['categories'];
+                    $parents[$partname]['tags']        = end($childrens[$partname])['tags'];
+                    $parents[$partname]['variation']   = $childrens[$partname];
+                    $parents[$partname]['title']       = end($childrens[$partname])['parent_title'] . ' ' .$parents[$partname]['title'];
+                    foreach ($childrens[$partname] as $children) {
+                        foreach ($children['attributes'] as $attribute => $attribute_value) {
+                            if ($attribute_value && !in_array($attribute_value, $parents[$partname]['attributes'][$attribute]))
+                                $parents[$partname]['attributes'][$attribute][] = $attribute_value;
+                        }
+                    }
+                    $product_cross_sells[$value['cross_sells']][] = $partname;
                 } else {
                     unset($parents[$partname]);
-                }
-            }
-
-            if ($product_attributes) {
-                foreach ($product_attributes as $key => $product_attribute) {
-                    $product_attributes[$key] = array_keys($product_attribute);
                 }
             }
 
@@ -697,8 +696,9 @@ class WooAPI extends \PriorityAPI\API
                         'tax_class'     => '', // optional
                         'weight'        => '', // optional
                         // For NEW attributes/values use NAMES (not slugs)
-                        'attributes'    => $product_attributes,
-                        'categories'    => $parent['categories']
+                        'attributes'    => $parent['attributes'],
+                        'categories'    => $parent['categories'],
+                        'tags'          => $parent['tags']
                     ) );
 
                     $parents[$sku_parent]['product_id'] = $id;
@@ -723,14 +723,14 @@ class WooAPI extends \PriorityAPI\API
 
                 }
 
-                foreach ($product_titles as $title => $product_title) {
-                    foreach ($product_title as $key => $sku) {
-                        $product_titles[$title][$key] = $parents[$sku]['product_id'];
+                foreach ($product_cross_sells as $k => $product_cross_sell) {
+                    foreach ($product_cross_sell as $key => $sku) {
+                        $product_cross_sells[$k][$key] = $parents[$sku]['product_id'];
                     }
                 }
 
                 foreach ($parents as $sku_parent => $parent) {
-                    $cross_sells = $product_titles[$parent['crosssell']];
+                    $cross_sells = $product_cross_sells[$parent['cross_sells']];
 
                     if (($key = array_search($parent['product_id'], $cross_sells)) !== false) {
                         unset($cross_sells[$key]);

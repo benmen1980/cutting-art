@@ -75,6 +75,12 @@ function create_product_variable( $data ){
         if ($data['categories'] && is_array($data['categories']))
             wp_set_object_terms( $product_id, $data['categories'], 'product_cat' );
 
+    ## ---------------------- VARIATION TAGS ---------------------- ##
+
+
+    if ($data['tags'] && is_array($data['tags']))
+        wp_set_object_terms( $product_id, $data['tags'], 'product_tag' );
+
 
     ## ---------------------- VARIATION ATTRIBUTES ---------------------- ##
 
@@ -125,6 +131,7 @@ function create_product_variable( $data ){
             wp_set_object_terms( $product_id, $term_name, $taxonomy_name, true );
         }
     }
+    //$product_attributes = array_reverse($product_attributes, 1);
     update_post_meta( $product_id, '_product_attributes', $product_attributes );
     $product->save(); // Save the data
 
@@ -172,7 +179,7 @@ function create_product_variation( $product_id, $variation_data ){
     // Iterating through the variations attributes
     foreach ($variation_data['attributes'] as $attribute => $term_name )
     {
-        $taxonomy = 'pa_'.$attribute; // The attribute taxonomy
+        $taxonomy = 'pa_'.sanitize_title($attribute); // The attribute taxonomy
 
         // Check if the Term name exist and if not we create it.
         if( ! term_exists( $term_name, $taxonomy ) )
