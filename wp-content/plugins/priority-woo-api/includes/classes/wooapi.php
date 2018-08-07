@@ -100,9 +100,24 @@ class WooAPI extends \PriorityAPI\API
 
             $data = $this->getProductDataBySku($variation->get_sku());
 
-            return empty($data) ? false : true; 
+            return empty($data) ? false : true;
             
         }, 10, 4);
+
+        add_filter('woocommerce_variation_prices', function($transient_cached_prices){
+
+            $transient_cached_prices_new = [];
+
+            foreach ($transient_cached_prices as $type_price => $variations) {
+                foreach ($variations as $var_id => $price) {
+                    $sku = get_post_meta($var_id, '_sku', true);
+                    $data = $this->getProductDataBySku($sku);
+                    if (!empty($data)) $transient_cached_prices_new[$type_price][$var_id] = $price;
+                }
+            }
+
+            return $transient_cached_prices_new ? $transient_cached_prices_new : $transient_cached_prices;
+        }, 10);
 
         // set shop currency regarding to price list currency 
         if($user_id = get_current_user_id()) {
@@ -513,7 +528,7 @@ class WooAPI extends \PriorityAPI\API
 
             exit(json_encode(['status' => 1, 'timestamp' => date('d/m/Y H:i:s')]));
         });
-        
+
 
     }  
  
