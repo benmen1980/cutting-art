@@ -24,6 +24,5 @@
                 <?php _e('Conversion table', 'cta'); ?>
             </a>
         </li>
-
     </ul>
 </div>

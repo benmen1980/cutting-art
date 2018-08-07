@@ -67,7 +67,7 @@ class IvcorCustom
                                         <span><?=strtoupper($task)?></span>
                                     </legend>
                                     <label for="<?=$task?>">
-                                        <input name="<?=$task?>" type="checkbox" id="<?=$task?>" value="1" <?=checked($options[$task],1)?>>
+                                        <input name="<?=$task?>" type="checkbox" id="<?=$task?>" value="1" <?=checked(isset($options[$task]) ? $options[$task] : 0,1)?>>
                                     </label>
                                 </fieldset>
                             </td>
