@@ -35,6 +35,12 @@ function t161_wp_loaded() {
     remove_action( 'woocommerce_after_shop_loop',        'storefront_sorting_wrapper',               9 );
     remove_action( 'woocommerce_after_shop_loop',        'woocommerce_catalog_ordering',             10 );
     remove_action( 'woocommerce_after_shop_loop',        'woocommerce_result_count',                 20 );
-    remove_action( 'woocommerce_after_shop_loop',        'woocommerce_pagination',                   30 );
+    /**
+     * t191
+     */
+    //remove_action( 'woocommerce_after_shop_loop',        'woocommerce_pagination',                   30 );
+    /**
+     * end t191
+     */
     remove_action( 'woocommerce_after_shop_loop',        'storefront_sorting_wrapper_close',         31 );
 }
