@@ -119,6 +119,53 @@ class WooAPI extends \PriorityAPI\API
             return $transient_cached_prices_new ? $transient_cached_prices_new : $transient_cached_prices;
         }, 10);
 
+        /**
+         * t190
+         */
+        add_filter('woocommerce_product_categories_widget_args', function($list_args){
+
+            $user_id = get_current_user_id();
+
+            $meta = get_user_meta($user_id, '_priority_price_list', true);
+
+            $list_args['hide_empty'] = 1;
+
+            if ($meta === 'no-selected') return $list_args;
+
+            $list = empty($meta) ? $this->basePriceCode : $meta;
+
+            $products = $GLOBALS['wpdb']->get_results('
+                SELECT product_sku
+                FROM ' . $GLOBALS['wpdb']->prefix . 'p18a_pricelists
+                WHERE price_list_code = "' . esc_sql($list) . '"
+                AND blog_id = ' . get_current_blog_id(),
+                ARRAY_A
+            );
+
+            $cat_ids = [];
+
+            // get product id
+            foreach($products as $product) {
+                if ($id = wc_get_product_id_by_sku($product['product_sku'])) {
+                    $parent_id = get_post($id)->post_parent;
+                    if ($parent_id) $cat_id = wc_get_product_cat_ids($parent_id);
+                    if ($cat_id) $cat_ids = array_unique(array_merge($cat_ids, $cat_id));
+                }
+            }
+
+            if ($cat_ids) {
+                $list_args['include'] = implode(',', $cat_ids);
+            } else {
+                $args = array_merge(['fields' => 'ids'], $list_args);
+                $list_args['exclude'] = implode(',', get_terms($args));
+            }
+
+            return $list_args;
+        }, 10);
+        /**
+         * end t190
+         */
+
         // set shop currency regarding to price list currency 
         if($user_id = get_current_user_id()) {
 
