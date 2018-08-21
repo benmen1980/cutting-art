@@ -8,3 +8,6 @@
 input.shipping_method {
     display: none;
 }
+input[type=checkbox]+label, input[type=radio]+label {
+    margin-left: 0 !important;
+}
