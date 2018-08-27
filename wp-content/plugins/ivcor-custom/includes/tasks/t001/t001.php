@@ -15,8 +15,8 @@ if ( !isset($option) || !isset($option[$task]) || !$option[$task] ) {
  * hooks
  */
 add_filter('woocommerce_before_add_to_cart_form', 't001_woocommerce_before_add_to_cart_form', 25);
-add_filter( 'woocommerce_dropdown_variation_attribute_options_args', 't001_woocommerce_dropdown_variation_attribute_options_args');
-add_action( "wp_enqueue_scripts", "t001_wp_enqueue_scripts" );
+//add_filter('woocommerce_dropdown_variation_attribute_options_args', 't001_woocommerce_dropdown_variation_attribute_options_args');
+add_action('wp_enqueue_scripts', 't001_wp_enqueue_scripts' );
 /**
  * end hooks
  */
@@ -49,6 +49,7 @@ function t001_woocommerce_dropdown_variation_attribute_options_args( $args ){
 function t001_wp_enqueue_scripts(){
     $ver = time();
     $path_assets = plugin_dir_url(__FILE__) . '/assets/';
-    if (is_product())
+    if (is_product()) {
         wp_enqueue_script('t001_front_js', $path_assets . 'js/front.js', ['jquery'], $ver, true);
+    }
 }
