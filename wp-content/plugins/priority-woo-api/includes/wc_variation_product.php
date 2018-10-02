@@ -225,6 +225,7 @@ function create_product_variation( $product_id, $variation_data ){
         $variation->set_manage_stock(false);
     }*/
 
+    update_post_meta( $variation_id, 'product_code', $variation_data['product_code'] );
     $variation->set_weight(''); // weight (reseting)
 
     $variation->save(); // Save the data

@@ -243,6 +243,7 @@ class CA_JOBS {
         $columns['number'] = 'Number';
         $columns['status'] = 'Status';
         $columns['sku'] = 'SKU';
+        $columns['product_code'] = 'Product Code';
         $columns['price'] = 'Price';
         $columns['order_status'] = 'Order Status';
         $columns['customer'] = 'Customer';
@@ -279,6 +280,10 @@ class CA_JOBS {
                 $sku = get_post_meta($post_id, '_product_sku', true);
                 $product_link = ($product_id) ? admin_url("post.php?post=$product_id&action=edit") : '';
                 echo ($sku && $product_link) ? "<a href='$product_link'>$sku</a>" : 'None';
+                break;
+            case 'product_code' :
+                $product_code = get_post_meta($post_id, '_product_code', true);
+                echo $product_code ? $product_code : 'None';
                 break;
             case 'price' :
                 $job_price = get_post_meta($post_id, '_order_price', true);
@@ -458,6 +463,7 @@ class CA_JOBS {
             update_post_meta($id, '_product_id',  $job['product_id']);
             update_post_meta($id, '_order_price', $job['order_price']);
             update_post_meta($id, '_order_id',    $job['order_id']);
+            update_post_meta($id, '_product_code', $job['product_code']);
         }
     }
 
@@ -500,6 +506,7 @@ class CA_JOBS {
                         'order_price' => ($product) ? floatval($product->get_price()) + floatval($add_price) : 0,
                         'product_id' => $item->get_product_id(),
                         'product_sku' => ($product) ? $product->get_sku() : 0
+                        'product_code' => get_post_meta($item->get_variation_id(),'product_code', true),
                     ];
                 }
             }

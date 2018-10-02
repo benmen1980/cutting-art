@@ -689,6 +689,7 @@ class WooAPI extends \PriorityAPI\API
                             'sku'           => $item['PARTNAME'],
                             'regular_price' => $item['BASEPLPRICE'],
                             'stock'         => $item['INVFLAG'],
+                            'product_code'  => $item['EPARTDES'],
                             'parent_title'  => $item['ROYL_SPECEDES2'],
                             'title'         => $item['ROYL_SPECDES1'],
                             'stock'         => ($item['INVFLAG'] == 'Y') ? 'instock' : 'outofstock',
@@ -757,6 +758,7 @@ class WooAPI extends \PriorityAPI\API
                             'attributes'    => $children['attributes'],
                             'sku'           => $sku_children,
                             'regular_price' => $children['regular_price'],
+                            'product_code'  => $children['product_code'],
                             'sale_price'    => '',
                             'stock'         => $children['stock'],
                         );
