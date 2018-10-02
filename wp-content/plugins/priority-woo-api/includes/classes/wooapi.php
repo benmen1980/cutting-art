@@ -120,50 +120,78 @@ class WooAPI extends \PriorityAPI\API
         }, 10);
 
         /**
-         * t190
+         * t190 t214
          */
         add_filter('woocommerce_product_categories_widget_args', function($list_args){
 
             $user_id = get_current_user_id();
 
+            $include = [];
+            $exclude = [];
+
             $meta = get_user_meta($user_id, '_priority_price_list', true);
 
-            $list_args['hide_empty'] = 1;
+            if ($meta !== 'no-selected') {
+                $list = empty($meta) ? $this->basePriceCode : $meta;
+                $products = $GLOBALS['wpdb']->get_results('
+                    SELECT product_sku
+                    FROM ' . $GLOBALS['wpdb']->prefix . 'p18a_pricelists
+                    WHERE price_list_code = "' . esc_sql($list) . '"
+                    AND blog_id = ' . get_current_blog_id(),
+                        ARRAY_A
+                );
 
-            if ($meta === 'no-selected') return $list_args;
+                $cat_ids = [];
 
-            $list = empty($meta) ? $this->basePriceCode : $meta;
+                foreach ($products as $product) {
+                    if ($id = wc_get_product_id_by_sku($product['product_sku'])) {
+                        $parent_id = get_post($id)->post_parent;
+                        if (isset($parent_id) && $parent_id) $cat_id = wc_get_product_cat_ids($parent_id);
+                        if (isset($cat_id) && $cat_id) $cat_ids = array_unique(array_merge($cat_ids, $cat_id));
+                    }
+                }
 
-            $products = $GLOBALS['wpdb']->get_results('
-                SELECT product_sku
-                FROM ' . $GLOBALS['wpdb']->prefix . 'p18a_pricelists
-                WHERE price_list_code = "' . esc_sql($list) . '"
-                AND blog_id = ' . get_current_blog_id(),
-                ARRAY_A
-            );
-
-            $cat_ids = [];
-
-            // get product id
-            foreach($products as $product) {
-                if ($id = wc_get_product_id_by_sku($product['product_sku'])) {
-                    $parent_id = get_post($id)->post_parent;
-                    if ($parent_id) $cat_id = wc_get_product_cat_ids($parent_id);
-                    if ($cat_id) $cat_ids = array_unique(array_merge($cat_ids, $cat_id));
+                if ($cat_ids) {
+                    $include = array_merge($include, $cat_ids);
+                } else {
+                    $args = array_merge(['fields' => 'ids'], $list_args);
+                    $exclude = array_merge($include, get_terms($args));
                 }
             }
 
-            if ($cat_ids) {
-                $list_args['include'] = implode(',', $cat_ids);
-            } else {
+            //check display categories
+            if (empty($include)){
                 $args = array_merge(['fields' => 'ids'], $list_args);
-                $list_args['exclude'] = implode(',', get_terms($args));
+                $include = get_terms($args);
             }
 
+            global $wpdb;
+            $term_ids = $wpdb->get_col("SELECT woocommerce_term_id as term_id FROM {$wpdb->prefix}woocommerce_termmeta WHERE meta_key = '_attribute_display_category' AND meta_value = '0'");
+            if (!$term_ids) $term_ids = []; else $term_ids = array_unique($term_ids);
+
+            $include = array_diff($include, $term_ids);
+
+            //check display categories for user
+            $cat_user = get_user_meta($user_id, '_display_product_cat', true);
+
+            if (is_array($cat_user)){
+                if ($cat_user) {
+                    $include = array_intersect($include, $cat_user);
+                }else{
+                    $args = array_merge(['fields' => 'ids'], $list_args);
+                    $include = [];
+                    $exclude = array_merge($exclude, get_terms($args));
+                }
+            }
+
+            $list_args['hide_empty'] = 1;
+            $list_args['include'] = implode(',', array_unique($include));
+            $list_args['exclude'] = implode(',', array_unique($exclude));
+
             return $list_args;
-        }, 10);
+        });
         /**
-         * end t190
+         * end t190 t214
          */
 
         // set shop currency regarding to price list currency 
