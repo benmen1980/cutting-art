@@ -812,6 +812,21 @@ class WooAPI extends \PriorityAPI\API
                     if (($key = array_search($parent['product_id'], $cross_sells)) !== false) {
                         unset($cross_sells[$key]);
                     }
+                    /**
+                     * t205
+                     */
+                    $cross_sells_merge_array = [];
+
+                    if ($cross_sells_old = get_post_meta($parent['product_id'], '_crosssell_ids', true)){
+                        foreach ($cross_sells_old as $value)
+                            if (!is_array($value)) $cross_sells_merge_array[] = $value;
+                    }
+
+                    $cross_sells = array_unique(array_filter(array_merge( $cross_sells, $cross_sells_merge_array)));
+
+                    /**
+                     * end t205
+                     */
 
                     update_post_meta($parent['product_id'], '_crosssell_ids', $cross_sells);
                 }

@@ -84,7 +84,7 @@ function create_product_variable( $data ){
 
     ## ---------------------- VARIATION ATTRIBUTES ---------------------- ##
 
-    $product_attributes = array();
+    $product_attributes = [];
 
     foreach( $data['attributes'] as $key => $terms ){
 
@@ -132,6 +132,13 @@ function create_product_variable( $data ){
         }
     }
     //$product_attributes = array_reverse($product_attributes, 1);
+    /**
+     * t205
+     */
+    $product_attributes = array_merge( $product_attributes, get_post_meta($product_id, '_product_attributes', true));
+    /**
+     * end t205
+     */
     update_post_meta( $product_id, '_product_attributes', $product_attributes );
     $product->save(); // Save the data
 
