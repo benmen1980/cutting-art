@@ -727,8 +727,9 @@ class WooAPI extends \PriorityAPI\API
                                 $item['FAMILYDES']
                             ],
                             'categories'    => [
-                                $item['ROYL_SPECDES2'],
-                                $item['FAMILYDES']
+                                'Material' => $item['ROYL_SPECDES2'],
+                                'Jewelry Type' => $item['FAMILYDES'],
+                                'Jewelry Type & Material' => $item['ROYL_SPECEDES2'] . ' ' . $item['FAMILYDES'],
                             ],
                             'attributes'    => $attributes
                         ];

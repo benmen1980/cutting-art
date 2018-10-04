@@ -71,9 +71,24 @@ function create_product_variable( $data ){
 
     ## ---------------------- VARIATION CATEGORIES ---------------------- ##
 
-
-        if ($data['categories'] && is_array($data['categories']))
-            wp_set_object_terms( $product_id, $data['categories'], 'product_cat' );
+    if ($data['categories'] && is_array($data['categories'])) {
+        foreach ($data['categories'] as $parent_cat => $category){
+            if (term_exists($category)){
+                wp_set_object_terms($product_id, $category, 'product_cat', true);
+            }else{
+                $terms_id = wp_set_object_terms($product_id, $category, 'product_cat', true);
+                if (!is_wp_error($terms_id)){
+                    $parent_id = get_term_by('name', $parent_cat)->term_id;
+                    if (!$parent_id) $parent_id = wp_create_term($parent_cat, 'product_cat')['term_id'];
+                    foreach ($terms_id as $term_id){
+                        wp_update_term($term_id, 'product_cat', [
+                            'parent' => $parent_id
+                        ]);
+                    }
+                }
+            }
+        }
+    }
 
     ## ---------------------- VARIATION TAGS ---------------------- ##
 
