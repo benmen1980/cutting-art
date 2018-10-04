@@ -1,0 +1,4 @@
+.woocommerce-Price-amount,
+.price {
+    display: none !important;
+}

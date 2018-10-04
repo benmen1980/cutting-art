@@ -74,13 +74,17 @@ class WC_DPM {
         add_action( 'wp_ajax_nopriv_change_retail_price_proc_for_user', array($this, 'change_retail_price_proc_for_user') );
         add_action( 'wp_ajax_change_retail_price_proc_for_user', array($this, 'change_retail_price_proc_for_user') );
 
-        add_filter( 'raw_woocommerce_price', array($this, 'raw_woocommerce_price'), 1, 10);
+        //add_filter( 'raw_woocommerce_price', array($this, 'raw_woocommerce_price'), 1, 10);
+        //add_filter( 'woocommerce_variation_prices', array($this, 'woocommerce_variation_prices'), 2, 10);
+
+        add_filter( 'woocommerce_product_variation_get_price', array($this, 'woocommerce_product_variation_get_price'), 2, 10);
 
         add_action( 'woocommerce_after_my_account', array($this, 'woocommerce_after_my_account') );
 
+        //add_action( 'woocommerce_before_calculate_totals', array($this, 'woocommerce_before_calculate_totals'), 10, 1);
+
         add_action( 'init', array($this, 'init') );
     }
-
 
     /**
      * Init
@@ -106,17 +110,137 @@ class WC_DPM {
         if (current_user_can('customer') || current_user_can('administrator') || current_user_can('shop_manager')) {
             $user_retail_price_proc = get_user_meta($user_id, 'wcdpm_retail_price_proc', true);
             $user_retail_price_proc = $user_retail_price_proc ? $user_retail_price_proc : 0;
-            /*$procs = range(0, 100, 5);
-            $options = '';
-            $selected = selected($user_retail_price_proc, '0', 0);
-            foreach ($procs as $proc) {
-                $selected = selected($user_retail_price_proc, $proc, 0);
-                $options .= "<option value='{$proc}' {$selected}>{$proc}%</option>";
-            }
-            $html = "Retail Price: <select user-id='{$user_id}' class='change-retail-price-proc-for-user'>{$options}</select>";*/
-            $html = "Retail Price: <input class='input-retail-price-proc-for-user' user-id='{$user_id}' min='0' max='500' style='width: 70px' type='number' value='{$user_retail_price_proc}'> <a style='cursor: pointer' class='input-retail-price-proc-for-user-save'>Save</a>";
-            echo $html;
+
+            echo "<div class='row wc_dpm_woocommerce_after_my_account'>";
+            echo "Retail Price: <input class='input-retail-price-proc-for-user' user-id='{$user_id}' min='0' max='500' style='width: 70px' type='number' value='{$user_retail_price_proc}'>";
+            echo " <a style='cursor: pointer; padding: 0 10px;' class='woocommerce-button button input-retail-price-proc-for-user-save'>Save</a>";
+            echo "</div><br>";
         }
+    }
+
+
+    /**
+     * @param $cart_obj
+     */
+    public function woocommerce_before_calculate_totals($cart_obj ) {
+
+        if ( is_admin() && ! defined( 'DOING_AJAX' ) )
+            return;
+
+        $user_id = get_current_user_id();
+        $price_proc = get_user_meta($user_id,'wcdpm_retail_price_proc', true);
+        $price_proc = $price_proc ? $price_proc : 0;
+        $price_proc_by_cat = get_user_meta($user_id, '_retail_price_category', true);
+
+        foreach ( $cart_obj->get_cart() as $key => $value ) {
+            $product = new WC_Product($value['product_id']);
+            $categories = $product->get_category_ids();
+            $price = $value['data']->get_regular_price();
+            $price_out = $price;
+
+            if ($categories && is_array($categories)) {
+                foreach ($categories as $term_id){
+                    $retail_price = get_user_meta($user_id, '_retail_price_addition_by_' . $term_id, true);
+                    $new_price = get_user_meta($user_id, '_new_retail_price_by_' . $term_id, true);
+
+                    if (isset($new_price[$value['variation_id']]) && $new_price[$value['variation_id']]) {
+                        $price_out = $new_price[$value['variation_id']];
+                    } else if (isset($retail_price[$value['variation_id']]) && $retail_price[$value['variation_id']]) {
+                        $price_out = floatval($price + $price * floatval($retail_price[$value['variation_id']]) / 100);
+                    } else if (isset($price_proc_by_cat[$term_id])) {
+                        $price_out = floatval($price + $price * floatval($price_proc_by_cat[$term_id]) / 100);
+                    } else {
+                        $price_out = floatval($price + $price * floatval($price_proc) / 100);
+                    }
+                }
+            }
+
+            $value['data']->set_price( $price_out );
+        }
+    }
+
+    /**
+     * @param $price
+     * @param $product_variation
+     * @return float
+     */
+    public function woocommerce_product_variation_get_price($price, $product_variation){
+        if (!is_admin()) {
+            $variation_id = $product_variation->get_id();
+
+            $product_id = wc_get_product_id_by_sku($product_variation->get_parent_data()['sku']);
+            $product = new WC_Product($product_id);
+            $categories = $product->get_category_ids();
+            $user_id = get_current_user_id();
+            $price_proc = get_user_meta($user_id, 'wcdpm_retail_price_proc', true);
+            $price_proc = $price_proc ? $price_proc : 0;
+            $price_out = $price;
+
+            if ($categories && is_array($categories)) {
+                $price_proc_by_cat = get_user_meta($user_id, '_retail_price_category', true);
+
+                foreach ($categories as $term_id) {
+
+                    $retail_price = get_user_meta($user_id, '_retail_price_addition_by_' . $term_id, true);
+                    $new_price = get_user_meta($user_id, '_new_retail_price_by_' . $term_id, true);
+
+                    if (isset($new_price[$variation_id]) && $new_price[$variation_id]) {
+                        $price_out = $new_price[$variation_id];
+                    } else if (isset($retail_price[$variation_id]) && $retail_price[$variation_id]) {
+                        $price_out = floatval($price + $price * floatval($retail_price[$variation_id]) / 100);
+                    } else if (isset($price_proc_by_cat[$term_id]) && $price_proc_by_cat[$term_id]) {
+                        $price_out = floatval($price + $price * floatval($price_proc_by_cat[$term_id]) / 100);
+                    }
+                }
+
+                if ($price_out === $price)
+                    $price_out = floatval($price + $price * floatval($price_proc) / 100);
+            }
+
+            return $price_out;
+        } else {
+            return $price;
+        }
+    }
+
+    /**
+     * @param $prices
+     * @param $product
+     * @return mixed
+     */
+    public function woocommerce_variation_prices($prices, $product){
+        $user_id = get_current_user_id();
+        $new_prices = [];
+        $categories = $product->get_category_ids();
+        $price_proc = get_user_meta($user_id,'wcdpm_retail_price_proc', true);
+
+        if ($categories && is_array($categories)) {
+            $price_proc_by_cat = get_user_meta($user_id, '_retail_price_category', true);
+            if ($price_proc_by_cat){
+                foreach ($categories as $term_id){
+
+                    $retail_price = get_user_meta($user_id, '_retail_price_addition_by_' . $term_id, true);
+                    $new_price = get_user_meta($user_id, '_new_retail_price_by_' . $term_id, true);
+
+                    foreach ($prices['price'] as $variation_id => $price) {
+                        if (isset($new_price[$variation_id]) && $new_price[$variation_id]) {
+                            $new_prices[$variation_id] = floatval($new_price[$variation_id]);
+                        } else if (isset($retail_price[$variation_id]) && $retail_price[$variation_id]) {
+                            $new_prices[$variation_id] = floatval($price + $price * floatval($retail_price[$variation_id]) / 100);
+                        } else if (isset($price_proc_by_cat[$term_id])) {
+                            $new_prices[$variation_id] = floatval($price + $price * floatval($price_proc_by_cat[$term_id]) / 100);
+                        } else {
+                            $new_prices[$variation_id] = floatval($price + $price * floatval($price_proc) / 100);
+                        }
+                    }
+                }
+            }
+        }
+        $prices['price'] = $new_prices;
+        $prices['regular_price'] = $new_prices;
+        $prices['sale_price'] = $new_prices;
+
+        return $prices;
     }
 
     /**
@@ -124,12 +248,38 @@ class WC_DPM {
      * @return float|int
      */
     public function raw_woocommerce_price($price){
-        if (!is_admin()) {
-            $user_id = get_current_user_id();
-            $price_proc = get_user_meta($user_id,'wcdpm_retail_price_proc', true);
-            $price_proc = $price_proc ? $price_proc : 0;
-            return $price + $price * $price_proc / 100;
-        } else {
+        $user_id = get_current_user_id();
+        if (!is_admin()){
+            global $product;
+
+            if (gettype($product) === 'string')
+                $product = new WC_Product(get_the_ID());
+            if ($product){
+                $price_proc = 0;
+                if (method_exists($product, 'get_category_ids')){
+                    $categories = $product->get_category_ids();
+                    if ($categories && is_array($categories)) {
+                        $price_proc_by_cat = get_user_meta($user_id, '_retail_price_category', true);
+                        if ($price_proc_by_cat){
+                            foreach ($categories as $term_id){
+                                if (isset($price_proc_by_cat[$term_id]) && $price_proc < floatval($price_proc_by_cat[$term_id])) {
+                                    $price_proc = floatval($price_proc_by_cat[$term_id]);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!$price_proc)
+                    $price_proc = get_user_meta($user_id,'wcdpm_retail_price_proc', true);
+
+                $price_proc = (isset($price_proc) && $price_proc) ? $price_proc : 0;
+
+                return $price + $price * $price_proc / 100;
+            }else{
+                return $price;
+            }
+        }else{
             return $price;
         }
     }
@@ -224,10 +374,39 @@ class WC_DPM {
      */
     public function wp_enqueue_scripts() {
 
-        $user_id = get_current_user_id();
-        $price_proc = get_user_meta($user_id,'wcdpm_retail_price_proc', true);
+        /*$user_id = get_current_user_id();
 
-        wp_localize_script('jquery', 'wcdpm', ['retailPriceProc' => ($price_proc ? $price_proc : 0), 'ajaxUrl' => admin_url('admin-ajax.php')]);
+        if (!is_admin() && is_product()){
+            $product = new WC_Product(get_the_ID());
+            if ($product){
+                $price_proc = 0;
+                if (method_exists($product, 'get_category_ids')){
+                    $categories = $product->get_category_ids();
+                    if ($categories && is_array($categories)) {
+                        $price_proc_by_cat = get_user_meta($user_id, '_retail_price_category', true);
+                        if ($price_proc_by_cat){
+                            foreach ($categories as $term_id){
+                                if (isset($price_proc_by_cat[$term_id]) && $price_proc < floatval($price_proc_by_cat[$term_id])) {
+                                    $price_proc = floatval($price_proc_by_cat[$term_id]);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!$price_proc)
+                    $price_proc = get_user_meta($user_id,'wcdpm_retail_price_proc', true);
+
+                $price_proc = (isset($price_proc) && $price_proc) ? $price_proc : 0;
+
+            }else{
+                $price_proc = 0;
+            }
+        }else{
+            $price_proc = 0;
+        }*/
+
+        wp_localize_script('jquery', 'wcdpm', ['retailPriceProc' => ((isset($price_proc) && $price_proc) ? $price_proc : 0), 'ajaxUrl' => admin_url('admin-ajax.php')]);
 
         wp_enqueue_script('wcdpm-front-wc-js', plugin_dir_url(dirname(__FILE__, 1)).'assets/js/wcdpm-front-wc.js', ['jquery'], $this->version, true);
     }

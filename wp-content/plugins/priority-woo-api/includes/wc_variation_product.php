@@ -17,8 +17,6 @@ function create_product_variable( $data ){
         'post_author'   => $author,
         'post_name'     => $postname,
         'post_title'    => !empty($data['title']) ? $data['title'] : '',
-        'post_content'  => !empty($data['content']) ? $data['content'] : '',
-        'post_excerpt'  => !empty($data['excerpt']) ? $data['excerpt'] : '',
         'post_status'   => 'publish',
         'ping_status'   => 'closed',
         'post_type'     => 'product',
@@ -94,7 +92,7 @@ function create_product_variable( $data ){
 
 
     if ($data['tags'] && is_array($data['tags']))
-        wp_set_object_terms( $product_id, $data['tags'], 'product_tag' );
+        wp_set_object_terms( $product_id, $data['tags'], 'product_tag', true );
 
 
     ## ---------------------- VARIATION ATTRIBUTES ---------------------- ##
