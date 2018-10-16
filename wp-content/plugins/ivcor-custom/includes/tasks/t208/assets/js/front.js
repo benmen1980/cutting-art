@@ -10,8 +10,8 @@
                action: 't208_hide_price_for_user_save',
                hidePrice: hidePrices ? 1 : 0
            },
-           success: function () {
-                alert('Success!');
+           success: function (res) {
+               if (res) alert('Success!')
            }
        });
     });
@@ -41,11 +41,13 @@
         let termId = $(this).attr('term-id');
 
         $('.retail_price_addition').each(function(){
-            retailPrice[$(this).attr('variation_id')] = $(this).attr('proc') ? $(this).attr('proc') : 0;
+            if ($(this).attr('proc') && $(this).attr('proc') !== '0')
+                retailPrice[$(this).attr('variation_id')] = $(this).attr('proc');
         });
 
         $('.new_retail_price').each(function(){
-            newPrice[$(this).attr('variation_id')] = $(this).attr('price') ? $(this).attr('price') : 0;
+            if ($(this).attr('price') && $(this).attr('price') !== '0')
+                newPrice[$(this).attr('variation_id')] = $(this).attr('price');
         });
 
         $.ajax({
@@ -54,9 +56,9 @@
             url: t208.ajaxUrl,
             data: {
                 action: 't208_table_retail_price_category_any_for_user_save',
+                termId: termId,
                 retailPrice: retailPrice,
                 newPrice: newPrice,
-                termId: termId
             },
             success: function () {
                 alert('Success!');

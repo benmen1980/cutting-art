@@ -14,7 +14,7 @@ if ( !isset($option) || !isset($option[$task]) || !$option[$task] ) {
 /**
  * hooks
  */
-add_action( 'woocommerce_after_my_account', 't208_woocommerce_after_my_account_hide_prices', 9 );
+//add_action( 'woocommerce_after_my_account', 't208_woocommerce_after_my_account_hide_prices', 9 );
 add_action( 'woocommerce_after_my_account', 't208_woocommerce_after_my_account_retail_price_by_category', 11 );
 /**
  * t209
@@ -25,15 +25,6 @@ add_action( 'woocommerce_after_my_account', 't208_woocommerce_after_my_account_r
  */
 
 add_action( 'wp_enqueue_scripts', 't208_wp_enqueue_scripts' );
-
-add_action( 'wp_ajax_t208_hide_price_for_user_save', 't208_hide_price_for_user_save');
-add_action( 'wp_ajax_nopriv_t208_hide_price_for_user_save', 't208_hide_price_for_user_save');
-
-add_action( 'wp_ajax_t208_table_retail_price_category_for_user_save', 't208_table_retail_price_category_for_user_save');
-add_action( 'wp_ajax_nopriv_t208_table_retail_price_category_for_user_save', 't208_table_retail_price_category_for_user_save');
-
-add_action( 'wp_ajax_t208_table_retail_price_category_any_for_user_save', 't208_table_retail_price_category_any_for_user_save');
-add_action( 'wp_ajax_nopriv_t208_table_retail_price_category_any_for_user_save', 't208_table_retail_price_category_any_for_user_save');
 
 add_filter( 'woocommerce_order_amount_line_subtotal', 't208_woocommerce_order_formatted_line_subtotal', 10, 3);
 add_filter( 'woocommerce_order_subtotal_to_display', 't208_woocommerce_order_subtotal_to_display', 10, 3);
@@ -100,35 +91,40 @@ function t208_woocommerce_order_formatted_line_subtotal($price, $order, $item){
 }
 
 function t208_get_price_with_add_proc($variation_id, $product_id, $price){
-    $product = new WC_Product($product_id);
-    $categories = $product->get_category_ids();
-    $user_id = get_current_user_id();
-    $price_proc = get_user_meta($user_id, 'wcdpm_retail_price_proc', true);
-    $price_proc = $price_proc ? $price_proc : 0;
-    $price_out = $price;
+    $price_display = get_user_meta(get_current_user_id(), '_price_display', true);
+    if ($price_display === 'retail') {
+        $product = new WC_Product($product_id);
+        $categories = $product->get_category_ids();
+        $user_id = get_current_user_id();
+        $price_proc = get_user_meta($user_id, 'wcdpm_retail_price_proc', true);
+        $price_proc = $price_proc ? $price_proc : 0;
+        $price_out = $price;
 
-    if ($categories && is_array($categories)) {
-        $price_proc_by_cat = get_user_meta($user_id, '_retail_price_category', true);
+        if ($categories && is_array($categories)) {
+            $price_proc_by_cat = get_user_meta($user_id, '_retail_price_category', true);
 
-        foreach ($categories as $term_id) {
+            foreach ($categories as $term_id) {
 
-            $retail_price = get_user_meta($user_id, '_retail_price_addition_by_' . $term_id, true);
-            $new_price = get_user_meta($user_id, '_new_retail_price_by_' . $term_id, true);
+                $retail_price = get_user_meta($user_id, '_retail_price_addition_by_' . $term_id, true);
+                $new_price = get_user_meta($user_id, '_new_retail_price_by_' . $term_id, true);
 
-            if (isset($new_price[$variation_id]) && $new_price[$variation_id]) {
-                $price_out = $new_price[$variation_id];
-            } else if (isset($retail_price[$variation_id]) && $retail_price[$variation_id]) {
-                $price_out = floatval($price + $price * floatval($retail_price[$variation_id]) / 100);
-            } else if (isset($price_proc_by_cat[$term_id]) && $price_proc_by_cat[$term_id]) {
-                $price_out = floatval($price + $price * floatval($price_proc_by_cat[$term_id]) / 100);
+                if (isset($new_price[$variation_id]) && $new_price[$variation_id]) {
+                    $price_out = $new_price[$variation_id];
+                } else if (isset($retail_price[$variation_id]) && $retail_price[$variation_id]) {
+                    $price_out = floatval($price + $price * floatval($retail_price[$variation_id]) / 100);
+                } else if (isset($price_proc_by_cat[$term_id]) && $price_proc_by_cat[$term_id]) {
+                    $price_out = floatval($price + $price * floatval($price_proc_by_cat[$term_id]) / 100);
+                }
             }
+
+            if ($price_out === $price)
+                $price_out = floatval($price + $price * floatval($price_proc) / 100);
         }
 
-        if ($price_out === $price)
-            $price_out = floatval($price + $price * floatval($price_proc) / 100);
+        return $price_out;
+    }else{
+        return $price;
     }
-
-    return $price_out;
 }
 
 /**
@@ -136,6 +132,7 @@ function t208_get_price_with_add_proc($variation_id, $product_id, $price){
  * @param $order
  */
 function t208_woocommerce_order_details_after_order_table($order){
+    $order->calculate_taxes();
     $order->calculate_totals( false );
 }
 
@@ -150,40 +147,41 @@ function t208_woocommerce_checkout_create_order_line_item($item, $cart_item_key,
     $variation_id = $item->get_variation_id();
     $variable_product = wc_get_product($variation_id);
     $total = $variable_product->get_regular_price();
+    $sku = $variable_product->get_sku();
+
+    /**
+     * t217
+     */
+    if (get_user_meta(get_current_user_id(), '_price_display', true) !== '') {
+    /**
+     * end t217
+     */
+        $user_id = get_current_user_id();
+        $blog_id = get_current_blog_id();
+        $list = get_user_meta($user_id, '_priority_price_list', true);
+        $list = $list ? esc_sql($list) : '';
+        if ($list) {
+            global $wpdb;
+            $query = "SELECT price_list_price FROM {$wpdb->prefix}p18a_pricelists WHERE price_list_code = '{$list}' AND product_sku = '{$sku}' AND blog_id = {$blog_id}";
+            $total_db = $wpdb->get_var($query);
+            $total = $total_db ? floatval($total_db) : $total;
+        }
+    /**
+     * t217
+     */
+    }
+    /**
+     * end t217
+     */
 
     $item->set_props(
         array(
             'quantity'     => $values['quantity'],
             'variation'    => $values['variation'],
             'subtotal'     => $total,
-            'total'        => $total,
-            'subtotal_tax' => $values['line_subtotal_tax'],
-            'total_tax'    => $values['line_tax'],
-            'taxes'        => $values['line_tax_data'],
+            'total'        => $total
         )
     );
-}
-
-function t208_table_retail_price_category_any_for_user_save(){
-    $retail_price = $_POST['retailPrice'];
-    $new_price = $_POST['newPrice'];
-    $termId = $_POST['termId'];
-
-    update_user_meta(get_current_user_id(), '_retail_price_addition_by_' . $termId, $retail_price);
-    update_user_meta(get_current_user_id(), '_new_retail_price_by_' . $termId, $new_price);
-    wp_die(json_encode(true));
-}
-
-function t208_table_retail_price_category_for_user_save(){
-    $update = $_POST['update'];
-    update_user_meta(get_current_user_id(), '_retail_price_category', $update);
-    wp_die(json_encode($update));
-}
-
-function t208_hide_price_for_user_save(){
-    $hide_price = $_POST['hidePrice'];
-    update_user_meta(get_current_user_id(), '_hide_prices', $hide_price);
-    wp_die(json_encode($hide_price));
 }
 
 function t208_wp_enqueue_scripts(){
@@ -292,18 +290,22 @@ function t208_woocommerce_after_my_account_retail_price_by_variation(){
                     echo "<th>Currency</th>";
                 echo "</thead>";
             echo "<tbody style='display: block; overflow: auto; height: 500px;'>";
+            $meta = get_user_meta(get_current_user_id(), '_priority_price_list', true);
             foreach ($products as $product) {
                 $product = new WC_Product_Variable($product);
                 $available_variations = $product->get_available_variations();
 
                 foreach ($available_variations as $available_variation) {
+                    $list = empty($meta) ? 'no-selected' : $meta;
 
                     $data_price_list = $GLOBALS['wpdb']->get_results('
-                        SELECT * 
+                        SELECT *
                         FROM ' . $GLOBALS['wpdb']->prefix . 'p18a_pricelists
-                        WHERE product_sku = "' . $available_variation['sku'] . '"',
+                        WHERE product_sku = "' . $available_variation['sku'] . '"'.
+                        (($list != 'no-selected') ? ('AND price_list_code = "' . esc_sql($list) . '"') : ''),
                         ARRAY_A
                     );
+
                     $data_price_list = $data_price_list ? $data_price_list[0] : [];
                     echo "<tr>";
                     echo "<td>{$product->get_image()}</td>";
@@ -311,7 +313,11 @@ function t208_woocommerce_after_my_account_retail_price_by_variation(){
                     $product_code = get_post_meta($available_variation['variation_id'], 'product_code', true);
                     echo "<td>{$product_code}</td>";
                     echo "<td>{$product->get_name()}</td>";
-                    $price_list_price = $data_price_list ? $data_price_list['price_list_price'] : '';
+                    if ($list != 'no-selected') {
+                        $price_list_price = $data_price_list ? $data_price_list['price_list_price'] : '';
+                    } else {
+                        $price_list_price = floatval($product->get_price());
+                    }
                     echo "<td>{$price_list_price}</td>";
                     $price_proc_by_cat = get_user_meta(get_current_user_id(), '_retail_price_category', true);
                     if ($price_proc_by_cat && isset($price_proc_by_cat[$term->term_id]) && $price_proc_by_cat[$term->term_id]){
