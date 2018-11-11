@@ -87,7 +87,7 @@ add_action('plugins_loaded', function(){
     } else {
 
         add_action('admin_notices', function(){
-            printf('<div class="notice notice-error"><p>%s</p></div>', __('In order to use Priority WooCommerce API extension, Priority 18 API must be activated', 'p18a'));
+            printf('<div  class="notice notice-error"><p>%s</p></div>', __('In order to use Priority WooCommerce API extension, Priority 18 API must be activated', 'p18a'));
         });
 
     }
