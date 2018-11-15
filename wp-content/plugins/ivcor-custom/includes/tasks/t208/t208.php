@@ -103,17 +103,25 @@ function t208_get_price_with_add_proc($variation_id, $product_id, $price){
         if ($categories && is_array($categories)) {
             $price_proc_by_cat = get_user_meta($user_id, '_retail_price_category', true);
 
+            global $wpdb;
+            $table_name = "{$wpdb->prefix}woocommerce_termmeta";
+
             foreach ($categories as $term_id) {
 
-                $retail_price = get_user_meta($user_id, '_retail_price_addition_by_' . $term_id, true);
-                $new_price = get_user_meta($user_id, '_new_retail_price_by_' . $term_id, true);
+                $attribute_display_category_in_retail_management = $wpdb->get_var( "SELECT meta_value FROM $table_name WHERE woocommerce_term_id = $term_id AND meta_key = '_attribute_display_category_in_retail_management'");
 
-                if (isset($new_price[$variation_id]) && $new_price[$variation_id]) {
-                    $price_out = $new_price[$variation_id];
-                } else if (isset($retail_price[$variation_id]) && $retail_price[$variation_id]) {
-                    $price_out = floatval($price + $price * floatval($retail_price[$variation_id]) / 100);
-                } else if (isset($price_proc_by_cat[$term_id]) && $price_proc_by_cat[$term_id]) {
-                    $price_out = floatval($price + $price * floatval($price_proc_by_cat[$term_id]) / 100);
+                if ($attribute_display_category_in_retail_management === '1') {
+
+                    $retail_price = get_user_meta($user_id, '_retail_price_addition_by_' . $term_id, true);
+                    $new_price = get_user_meta($user_id, '_new_retail_price_by_' . $term_id, true);
+
+                    if (isset($new_price[$variation_id]) && $new_price[$variation_id]) {
+                        $price_out = $new_price[$variation_id];
+                    } else if (isset($retail_price[$variation_id]) && $retail_price[$variation_id]) {
+                        $price_out = floatval($price + $price * floatval($retail_price[$variation_id]) / 100);
+                    } else if (isset($price_proc_by_cat[$term_id]) && $price_proc_by_cat[$term_id]) {
+                        $price_out = floatval($price + $price * floatval($price_proc_by_cat[$term_id]) / 100);
+                    }
                 }
             }
 
@@ -218,7 +226,7 @@ function t208_woocommerce_after_my_account_retail_price_by_category() {
     if (current_user_can('customer') || current_user_can('administrator') || current_user_can('shop_manager')) {
 
         $material_cat = get_term_by('name', 'Jewelry Type & Material', 'product_cat' );
-        $materials_cat = get_term_children($material_cat->term_id, 'product_cat');
+        $materials_cat = apply_filters('t208_get_materials_cat', get_term_children($material_cat->term_id, 'product_cat'), $material_cat);
 
         $update = get_user_meta(get_current_user_id(), '_retail_price_category', true);
         $update = $update ? $update : [];
@@ -251,101 +259,129 @@ function t208_woocommerce_after_my_account_retail_price_by_variation(){
     if (current_user_can('customer') || current_user_can('administrator') || current_user_can('shop_manager')) {
         if (isset($_GET['retail_price_by_cat']) && $term = get_term(intval($_GET['retail_price_by_cat']))) {
 
-            $args = [
-                'post_type' => 'product',
-                'posts_per_page' => -1,
-                'tax_query' => [[
-                    'taxonomy' => 'product_cat',
-                    'fields' => 'term_id',
-                    'terms' => $term->term_id,
-                    'operator' => 'IN'
-                ]]
-            ];
+            global $wpdb;
+            $table_name = "{$wpdb->prefix}woocommerce_termmeta";
+            $term_id = $term->term_id;
 
-            $products = new WP_Query($args);
-            $products = $products->get_posts();
+            $attribute_display_category_in_retail_management = $wpdb->get_var( "SELECT meta_value FROM $table_name WHERE woocommerce_term_id = $term_id AND meta_key = '_attribute_display_category_in_retail_management'");
 
-            $retail_price = get_user_meta(get_current_user_id(), '_retail_price_addition_by_' . $term->term_id, true);
-            $retail_price = $retail_price ? $retail_price : [];
+            if ($attribute_display_category_in_retail_management === '1') {
 
-            $new_price = get_user_meta(get_current_user_id(), '_new_retail_price_by_' . $term->term_id, true);
-            $new_price = $new_price ? $new_price : [];
+                $args = [
+                    'post_type' => 'product',
+                    'posts_per_page' => -1,
+                    'tax_query' => [[
+                        'taxonomy' => 'product_cat',
+                        'fields' => 'term_id',
+                        'terms' => $term->term_id,
+                        'operator' => 'IN'
+                    ]]
+                ];
 
-            echo "<div class='row'>";
-            echo "<h3>Retail Price by Category - {$term->name}</h3>";
-            echo "<div class='table-container' style='overflow: auto; margin-bottom: 20px'>";
-            echo '<style>.table-container th, .table-container td {max-width: 120px; min-width: 120px; padding: 10px}</style>';
-            echo "<table>";
+                $products = new WP_Query($args);
+                $products = $products->get_posts();
+
+                $retail_price = get_user_meta(get_current_user_id(), '_retail_price_addition_by_' . $term->term_id, true);
+                $retail_price = $retail_price ? $retail_price : [];
+
+                $new_price = get_user_meta(get_current_user_id(), '_new_retail_price_by_' . $term->term_id, true);
+                $new_price = $new_price ? $new_price : [];
+
+                echo "<div class='row'>";
+                echo "<h3>Retail Price by Category - {$term->name}</h3>";
+                echo "<div class='table-container' style='overflow: auto; margin-bottom: 20px'>";
+                echo '<style>.table-container th, .table-container td {max-width: 120px; min-width: 120px; padding: 10px}</style>';
+                echo "<table>";
                 echo "<thead style='display: block'>";
-                    echo "<th>Product Image</th>";
-                    echo "<th>SKU</th>";
-                    echo "<th>Product Code</th>";
-                    echo "<th>Product Description</th>";
-                    echo "<th>Price (by price list)</th>";
-                    echo "<th>Current Retail Price Addition (%)</th>";
-                    echo "<th>Update Price by Percents?</th>";
-                    echo "<th>Retail Price Addition (%)</th>";
-                    echo "<th>Update Price Manually?</th>";
-                    echo "<th>New Retail Price</th>";
-                    echo "<th>Currency</th>";
+                echo "<th>Product Image</th>";
+                echo "<th>SKU</th>";
+                echo "<th>Product Code</th>";
+                echo "<th>Product Description</th>";
+                echo "<th>Price (by price list)</th>";
+                echo "<th>Current Retail Price Addition (%)</th>";
+                echo "<th>Update Price by Percents?</th>";
+                echo "<th>Retail Price Addition (%)</th>";
+                echo "<th>Update Price Manually?</th>";
+                echo "<th>New Retail Price</th>";
+                echo "<th>Currency</th>";
                 echo "</thead>";
-            echo "<tbody style='display: block; overflow: auto; height: 500px;'>";
-            $meta = get_user_meta(get_current_user_id(), '_priority_price_list', true);
-            foreach ($products as $product) {
-                $product = new WC_Product_Variable($product);
-                $available_variations = $product->get_available_variations();
+                echo "<tbody style='display: block; overflow: auto; height: 500px;'>";
+                $meta = get_user_meta(get_current_user_id(), '_priority_price_list', true);
+                foreach ($products as $product) {
+                    $product = new WC_Product_Variable($product);
+                    $available_variations = $product->get_available_variations();
 
-                foreach ($available_variations as $available_variation) {
-                    $list = empty($meta) ? 'no-selected' : $meta;
+                    foreach ($available_variations as $available_variation) {
+                        $list = empty($meta) ? 'no-selected' : $meta;
 
-                    $data_price_list = $GLOBALS['wpdb']->get_results('
+                        $data_price_list = $GLOBALS['wpdb']->get_results('
                         SELECT *
                         FROM ' . $GLOBALS['wpdb']->prefix . 'p18a_pricelists
-                        WHERE product_sku = "' . $available_variation['sku'] . '"'.
-                        (($list != 'no-selected') ? ('AND price_list_code = "' . esc_sql($list) . '"') : ''),
-                        ARRAY_A
-                    );
+                        WHERE product_sku = "' . $available_variation['sku'] . '"' .
+                            (($list != 'no-selected') ? ('AND price_list_code = "' . esc_sql($list) . '"') : ''),
+                            ARRAY_A
+                        );
 
-                    $data_price_list = $data_price_list ? $data_price_list[0] : [];
-                    echo "<tr>";
-                    echo "<td>{$product->get_image()}</td>";
-                    echo "<td>{$available_variation['sku']}</td>";
-                    $product_code = get_post_meta($available_variation['variation_id'], 'product_code', true);
-                    echo "<td>{$product_code}</td>";
-                    echo "<td>{$product->get_name()}</td>";
-                    if ($list != 'no-selected') {
-                        $price_list_price = $data_price_list ? $data_price_list['price_list_price'] : '';
-                    } else {
-                        $price_list_price = floatval($product->get_price());
-                    }
-                    echo "<td>{$price_list_price}</td>";
-                    $price_proc_by_cat = get_user_meta(get_current_user_id(), '_retail_price_category', true);
-                    if ($price_proc_by_cat && isset($price_proc_by_cat[$term->term_id]) && $price_proc_by_cat[$term->term_id]){
-                        $price_proc = floatval($price_proc_by_cat[$term->term_id]);
-                    }else{
-                        $price_proc = get_user_meta(get_current_user_id(),'wcdpm_retail_price_proc', true);
-                    }
-                    echo "<td>{$price_proc}%</td>";
-                    echo "<td><input class='update_price_by_percents' type='checkbox' variation_id='{$available_variation['variation_id']}'></td>";
-                    $proc = isset($retail_price[$available_variation['variation_id']]) ? $retail_price[$available_variation['variation_id']] : 0;
-                    $price = isset($new_price[$available_variation['variation_id']]) ? $new_price[$available_variation['variation_id']] : 0;
-                    echo "<td class='retail_price_addition' variation_id='{$available_variation['variation_id']}' proc='{$proc}'>{$proc}%</td>";
-                    echo "<td><input class='update_price_manually' type='checkbox' variation_id='{$available_variation['variation_id']}'></td>";
-                    echo "<td class='new_retail_price' variation_id='{$available_variation['variation_id']}' price='{$price}'>{$price}</td>";
-                    $price_list_currency = $data_price_list ? $data_price_list['price_list_currency'] : '';
-                    echo "<td>{$price_list_currency}</td>";
-                    echo "</tr>";
+                        $data_price_list = $data_price_list ? $data_price_list[0] : [];
+                        echo "<tr>";
+                        echo "<td>{$product->get_image()}</td>";
+                        echo "<td>{$available_variation['sku']}</td>";
+                        $product_code = get_post_meta($available_variation['variation_id'], 'product_code', true);
+                        echo "<td>{$product_code}</td>";
+                        echo "<td>{$product->get_name()}</td>";
+                        if ($list != 'no-selected') {
+                            $price_list_price = $data_price_list ? $data_price_list['price_list_price'] : '';
+                        } else {
+                            $price_list_price = floatval($product->get_price());
+                        }
+                        echo "<td>{$price_list_price}</td>";
+                        $price_proc_by_cat = get_user_meta(get_current_user_id(), '_retail_price_category', true);
+                        if ($price_proc_by_cat && isset($price_proc_by_cat[$term->term_id]) && $price_proc_by_cat[$term->term_id]) {
+                            $price_proc = floatval($price_proc_by_cat[$term->term_id]);
+                        } else {
+                            $price_proc = get_user_meta(get_current_user_id(), 'wcdpm_retail_price_proc', true);
+                        }
+                        echo "<td>{$price_proc}%</td>";
+                        echo "<td><input class='update_price_by_percents' type='checkbox' variation_id='{$available_variation['variation_id']}'></td>";
+                        $proc = isset($retail_price[$available_variation['variation_id']]) ? $retail_price[$available_variation['variation_id']] : 0;
+                        $price = isset($new_price[$available_variation['variation_id']]) ? $new_price[$available_variation['variation_id']] : 0;
+                        echo "<td class='retail_price_addition' variation_id='{$available_variation['variation_id']}' proc='{$proc}'>{$proc}%</td>";
+                        echo "<td><input class='update_price_manually' type='checkbox' variation_id='{$available_variation['variation_id']}'></td>";
+                        echo "<td class='new_retail_price' variation_id='{$available_variation['variation_id']}' price='{$price}'>{$price}</td>";
+                        $price_list_currency = $data_price_list ? $data_price_list['price_list_currency'] : '';
+                        echo "<td>{$price_list_currency}</td>";
+                        echo "</tr>";
 
+                    }
                 }
+                echo "</tbody>";
+                echo "</table>";
+                echo "</div>";
+                echo " <a term-id='{$term->term_id}' style='cursor: pointer; padding: 0 10px;' class='woocommerce-button button table-retail-price-category-any-for-user-save'>Save</a>";
+                echo "</div>";
+            }else{
+                $material_cat = get_term_by('name', 'Jewelry Type & Material', 'product_cat');
+                $materials_cat = apply_filters('t208_get_materials_cat', get_term_children($material_cat->term_id, 'product_cat'), $material_cat);
+
+                echo "<div class='row'>";
+                echo "<h3>Retail Price by Category</h3>";
+                echo "<table style='width: 250px; margin: 0 auto; max-height: 300px; display: block; overflow-y: scroll'>";
+                echo "<thead><th>Category</th></thead>";
+                echo "<tbody>";
+                foreach ($materials_cat as $term_id) {
+                    $term = get_term($term_id);
+
+                    echo "<tr>";
+                    echo "<td><a href='?retail_price_by_cat={$term_id}'>{$term->name}</a></td>";
+                    echo "</tr>";
+                }
+                echo "</tbody>";
+                echo "</table>";
+                echo "</div>";
             }
-            echo "</tbody>";
-            echo "</table>";
-            echo "</div>";
-            echo " <a term-id='{$term->term_id}' style='cursor: pointer; padding: 0 10px;' class='woocommerce-button button table-retail-price-category-any-for-user-save'>Save</a>";
-            echo "</div>";
         }else{
             $material_cat = get_term_by('name', 'Jewelry Type & Material', 'product_cat');
-            $materials_cat = get_term_children($material_cat->term_id, 'product_cat');
+            $materials_cat = apply_filters('t208_get_materials_cat', get_term_children($material_cat->term_id, 'product_cat'), $material_cat);
 
             echo "<div class='row'>";
             echo "<h3>Retail Price by Category</h3>";
