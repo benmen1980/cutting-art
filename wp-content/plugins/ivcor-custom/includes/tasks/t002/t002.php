@@ -24,7 +24,7 @@ function t002_wc_epo_get_element_for_display($element){
     $meta  = get_user_meta(get_current_user_id(), '_priority_price_list');
 
     $index = 0;
-    if($element['extra_multiple_choices']['SKU']){
+    if(isset($element) && isset($element['extra_multiple_choices']) && isset($element['extra_multiple_choices']['SKU']) && $element['extra_multiple_choices']['SKU']){
         foreach($element['rules_filtered'] as $item){
 
             $sku = $element['extra_multiple_choices']['SKU'][$index];

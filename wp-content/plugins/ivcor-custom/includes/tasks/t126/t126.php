@@ -26,6 +26,8 @@ add_action( "woocommerce_display_item_meta", "t126_woocommerce_display_item_meta
 
 function t126_woocommerce_display_item_meta($html, $item, $args) {
 
+    $items = [];
+
     foreach ($item->get_formatted_meta_data() as $meta_id => $meta ) {
         $term = get_term_by('slug', $meta->value, $meta->key);
         if ($term)
@@ -37,11 +39,12 @@ function t126_woocommerce_display_item_meta($html, $item, $args) {
             'display_value' => $external_name ? $external_name : $meta->display_value
         ];
     }
-
-    foreach ( $items as $meta_id => $meta ) {
-        $value     = $args['autop'] ? wp_kses_post( $meta['display_value'] ) : wp_kses_post( make_clickable( trim( $meta['display_value'] ) ) );
-        $strings[] = '<strong class="wc-item-meta-label">' . wp_kses_post( $meta['display_key'] ) . ':</strong> ' . $value;
-    }
+    $strings = [];
+    if ($items)
+        foreach ( $items as $meta_id => $meta ) {
+            $value     = $args['autop'] ? wp_kses_post( $meta['display_value'] ) : wp_kses_post( make_clickable( trim( $meta['display_value'] ) ) );
+            $strings[] = '<strong class="wc-item-meta-label">' . wp_kses_post( $meta['display_key'] ) . ':</strong> ' . $value;
+        }
 
     if ( $strings ) {
         $html = $args['before'] . implode( $args['separator'], $strings ) . $args['after'];

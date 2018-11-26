@@ -143,41 +143,12 @@ class WC_DPM {
      */
     public function woocommerce_product_variation_get_price($price, $product_variation){
 
-        $price_display = get_user_meta(get_current_user_id(), '_price_display', true);
-        if (!is_admin() && $price_display === 'retail') {
-            $variation_id = $product_variation->get_id();
+        $variation_id = $product_variation->get_id();
+        $product_id = wc_get_product_id_by_sku($product_variation->get_parent_data()['sku']);
 
-            $product_id = wc_get_product_id_by_sku($product_variation->get_parent_data()['sku']);
-            $product = new WC_Product($product_id);
-            $categories = $product->get_category_ids();
-            $user_id = get_current_user_id();
-            $price_proc = get_user_meta($user_id, 'wcdpm_retail_price_proc', true);
-            $price_proc = $price_proc ? $price_proc : 0;
-            $price_out = $price;
-
-            if ($categories && is_array($categories)) {
-                $price_proc_by_cat = get_user_meta($user_id, '_retail_price_category', true);
-
-                foreach ($categories as $term_id) {
-
-                    $retail_price = get_user_meta($user_id, '_retail_price_addition_by_' . $term_id, true);
-                    $new_price = get_user_meta($user_id, '_new_retail_price_by_' . $term_id, true);
-
-                    if (isset($new_price[$variation_id]) && $new_price[$variation_id]) {
-                        $price_out = $new_price[$variation_id];
-                    } else if (isset($retail_price[$variation_id]) && $retail_price[$variation_id]) {
-                        $price_out = floatval($price + $price * floatval($retail_price[$variation_id]) / 100);
-                    } else if (isset($price_proc_by_cat[$term_id]) && $price_proc_by_cat[$term_id]) {
-                        $price_out = floatval($price + $price * floatval($price_proc_by_cat[$term_id]) / 100);
-                    }
-                }
-
-                if ($price_out === $price)
-                    $price_out = floatval($price + $price * floatval($price_proc) / 100);
-            }
-
-            return $price_out;
-        } else {
+        if (function_exists('t208_get_price_with_add_proc')) {
+            return t208_get_price_with_add_proc($variation_id, $product_id, $price);
+        }else{
             return $price;
         }
     }

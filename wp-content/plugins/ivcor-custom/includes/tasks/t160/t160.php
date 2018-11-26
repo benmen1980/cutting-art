@@ -14,16 +14,14 @@ if ( !isset($option) || !isset($option[$task]) || !$option[$task] ) {
 /**
  * hooks
  */
-add_action( "wp_enqueue_scripts", "t157_enqueue_scripts" );
+add_action( "login_enqueue_scripts", "t160_login_enqueue_scripts" );
 /**
  * end hooks
  */
 
-function t157_enqueue_scripts() {
+function t160_login_enqueue_scripts() {
     $ver = time();
     $path_assets = plugin_dir_url(__FILE__) . '/assets/';
 
-    wp_enqueue_script('t157_front_js', $path_assets . 'js/front.js', ['jquery'], $ver, true);
-    wp_enqueue_style('t157_front_css', $path_assets . 'css/front.css', $ver);
+    wp_enqueue_style( 't160_login_css', $path_assets . 'css/login.css', $ver);
 }
-

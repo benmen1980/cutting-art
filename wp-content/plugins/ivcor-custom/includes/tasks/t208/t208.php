@@ -91,9 +91,10 @@ function t208_woocommerce_order_formatted_line_subtotal($price, $order, $item){
 }
 
 function t208_get_price_with_add_proc($variation_id, $product_id, $price){
+
+    $product = new WC_Product($product_id);
     $price_display = get_user_meta(get_current_user_id(), '_price_display', true);
     if ($price_display === 'retail') {
-        $product = new WC_Product($product_id);
         $categories = $product->get_category_ids();
         $user_id = get_current_user_id();
         $price_proc = get_user_meta($user_id, 'wcdpm_retail_price_proc', true);
@@ -108,7 +109,7 @@ function t208_get_price_with_add_proc($variation_id, $product_id, $price){
 
             foreach ($categories as $term_id) {
 
-                $attribute_display_category_in_retail_management = $wpdb->get_var( "SELECT meta_value FROM $table_name WHERE woocommerce_term_id = $term_id AND meta_key = '_attribute_display_category_in_retail_management'");
+                $attribute_display_category_in_retail_management = $wpdb->get_var("SELECT meta_value FROM $table_name WHERE woocommerce_term_id = $term_id AND meta_key = '_attribute_display_category_in_retail_management'");
 
                 if ($attribute_display_category_in_retail_management === '1') {
 
@@ -130,7 +131,12 @@ function t208_get_price_with_add_proc($variation_id, $product_id, $price){
         }
 
         return $price_out;
-    }else{
+    } else {
+        echo "<pre>";
+        print_r(TM_EPO()->tm_get_price_html($price, $product));
+        echo "</pre>";
+        $price = floatval(str_replace($product->get_price_suffix(), '', $price));
+
         return $price;
     }
 }
@@ -160,7 +166,7 @@ function t208_woocommerce_checkout_create_order_line_item($item, $cart_item_key,
     /**
      * t217
      */
-    if (get_user_meta(get_current_user_id(), '_price_display', true) !== '') {
+    //if (get_user_meta(get_current_user_id(), '_price_display', true) !== '') {
     /**
      * end t217
      */
@@ -168,6 +174,7 @@ function t208_woocommerce_checkout_create_order_line_item($item, $cart_item_key,
         $blog_id = get_current_blog_id();
         $list = get_user_meta($user_id, '_priority_price_list', true);
         $list = $list ? esc_sql($list) : '';
+
         if ($list) {
             global $wpdb;
             $query = "SELECT price_list_price FROM {$wpdb->prefix}p18a_pricelists WHERE price_list_code = '{$list}' AND product_sku = '{$sku}' AND blog_id = {$blog_id}";
@@ -177,7 +184,7 @@ function t208_woocommerce_checkout_create_order_line_item($item, $cart_item_key,
     /**
      * t217
      */
-    }
+    //}
     /**
      * end t217
      */

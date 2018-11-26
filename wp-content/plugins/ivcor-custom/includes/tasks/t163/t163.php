@@ -22,7 +22,11 @@ add_filter( 'login_redirect', 't163_login_redirect', 10, 3 );
 function t163_login_redirect( $redirect_to, $request, $user ) {
 
     if (method_exists($user, 'has_cap') && $user->has_cap('customer')) {
-        return home_url();
+        if (function_exists('wc_get_page_id')){
+            return get_permalink( wc_get_page_id( 'shop' ) );
+        }else{
+            return home_url();
+        }
     }else{
         return $redirect_to;
     }

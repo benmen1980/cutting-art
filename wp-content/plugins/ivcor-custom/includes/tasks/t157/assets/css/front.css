@@ -2,6 +2,7 @@
 .woocommerce-variation-price {
     display: none;
 }
-.tc-epo-totals {
+.tc-epo-totals,
+.tc-price {
     display: none !important;
 }

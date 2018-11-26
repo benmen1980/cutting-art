@@ -67,30 +67,22 @@ function t214_save_product_cat($term_id) {
     global $wpdb;
 
     $table_name = "{$wpdb->prefix}woocommerce_termmeta";
+    $meta_key = "_attribute_display_category";
+    $meta_value = isset($_POST['attribute_display_category']) ? 1 : 0;
 
-    if (isset($_POST['attribute_display_category']) && $_POST['attribute_display_category'] == 1) {
-        $update = $wpdb->update( $table_name,
-            array( 'meta_key' => '_attribute_display_category', 'meta_value' => $_POST['attribute_display_category'] ),
-            array( 'woocommerce_term_id' => $term_id )
+    $meta_id = $wpdb->get_var("SELECT meta_id FROM $table_name WHERE woocommerce_term_id = '$term_id' AND meta_key = '$meta_key'");
+
+    if (is_null($meta_id)) {
+        $wpdb->insert( $table_name,
+            array( 'woocommerce_term_id' => $term_id, 'meta_key' => $meta_key, 'meta_value' => $meta_value )
         );
-
-        if ($update === 0) {
-            $wpdb->insert( $table_name,
-                array( 'woocommerce_term_id' => $term_id, 'meta_key' => '_attribute_display_category', 'meta_value' => $_POST['attribute_display_category'] )
-            );
-        }
     } else {
-        $update = $wpdb->update( $table_name,
-            array( 'meta_key' => '_attribute_display_category', 'meta_value' => 0 ),
-            array( 'woocommerce_term_id' => $term_id )
+        $wpdb->update( $table_name,
+            array( 'woocommerce_term_id' => $term_id, 'meta_key' => $meta_key, 'meta_value' => $meta_value ),
+            array( 'meta_id' => $meta_id )
         );
-
-        if ($update === 0) {
-            $wpdb->insert( $table_name,
-                array( 'woocommerce_term_id' => $term_id, 'meta_key' => '_attribute_display_category', 'meta_value' => 0 )
-            );
-        }
     }
+
 }
 
 function t214_show_user_profile($user) {

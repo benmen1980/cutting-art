@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $option = get_option('ivcor_custom_functions');
 $task = str_replace('.php', '', basename(__FILE__));
 
-if ( isset($option) && !$option[$task] ) {
+if ( !isset($option) || !isset($option[$task]) || !$option[$task] ) {
     return;
 }
 

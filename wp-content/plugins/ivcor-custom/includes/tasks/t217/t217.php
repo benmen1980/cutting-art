@@ -41,9 +41,6 @@ function t217_storefront_header(){
         $option = 'hide';
     if ($price_display === 'regular') $option = 'regular';
     if ($price_display === 'retail') $option = 'retail';
-echo "<pre hidden>";
-print_r($option);
-echo "</pre>";
 ?>
     <style>
         #t217_price_dropdown {

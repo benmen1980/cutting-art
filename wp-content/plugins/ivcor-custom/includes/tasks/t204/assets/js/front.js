@@ -1,6 +1,6 @@
 (function($){
     $(document).on('ready', function(){
-       if (t204.tmMeta) {
+       if (window.t204 && t204.tmMeta) {
            let liID;
            $('.tm-epo-field-label').each(function(){
                let $this = $(this);
