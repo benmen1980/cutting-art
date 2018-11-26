@@ -48,7 +48,7 @@ class CTA extends \PriorityAPI\API
                     wp_enqueue_script('jquery');
                     wp_enqueue_script('jquery-ui-dialog');
                     wp_enqueue_style('wp-jquery-ui-dialog');
-                    wp_enqueue_script('cta-frontend-js', CTA_ASSET_URL . 'frontend.js', ['jquery']);
+                    wp_enqueue_script('cta-frontend-js', CTA_ASSET_URL . 'frontend.js', ['jquery','jquery-ui-dialog']);
     
                 }); 
                 
