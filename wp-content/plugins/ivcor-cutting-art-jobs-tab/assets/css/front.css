@@ -1,0 +1,12 @@
+.job_container {
+    text-align: center;
+    max-width: 300px;
+    margin: 0 auto 30px auto;
+}
+.job_container .select2{
+    margin: 10px 0;
+    text-align: left;
+}
+#job_scan_number {
+    display: none;
+}

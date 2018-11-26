@@ -11,7 +11,7 @@ class CA_JOBS {
     /**
      * @var string version
      */
-    public $version = '0.0.1';
+    public $version = '0.0.8';
 
     /**
      * @var string plugin name
@@ -51,6 +51,7 @@ class CA_JOBS {
 
         add_filter('woocommerce_account_menu_items', [$this, 'woocommerce_account_menu_items'], 10, 1);
         add_action('woocommerce_account_jobs_endpoint', [$this, 'woocommerce_account_jobs_endpoint']);
+        add_action('woocommerce_account_jobs_new_endpoint', [$this, 'woocommerce_account_jobs_new_endpoint']);
 
         add_action('job_status_add_form_fields', [$this, 'job_status_add_form_fields'], 10, 2);
         add_action('job_status_edit_form_fields', [$this, 'job_status_edit_form_fields'], 10, 2);
@@ -64,6 +65,57 @@ class CA_JOBS {
         add_filter('woocommerce_order_get_items', [$this, 'woocommerce_order_get_items'], 10, 1);
 
         add_action('wp_ajax_update_job_status_default', [$this, 'update_job_status_default']);
+
+        add_action('wp_ajax_update_job_status_from_control', [$this, 'update_job_status_from_control']);
+
+        add_action('wp_ajax_update_job_status', [$this, 'update_job_status']);
+        add_action('wp_ajax_nopriv_update_job_status', [$this, 'update_job_status']);
+
+        add_filter('pre_insert_term', [$this, 'pre_insert_term'], 10, 3);
+    }
+
+    private function add_job_status($job_id, $new_status_id) {
+        $job_id = intval($job_id);
+        $new_status_id = intval($new_status_id);
+        $old_status_ids = wp_get_object_terms($job_id, 'job_status', ['fields' => 'ids']);
+        $new_status_ids = array_merge($old_status_ids, [$new_status_id]);
+        update_post_meta($job_id, '_job_last_status', $new_status_id);
+        $log = $this->save_log(
+            get_current_user_id(),
+            $job_id,
+            get_post_meta($job_id, '_job_number', true),
+            $new_status_id
+        );
+        wp_set_object_terms($job_id, $new_status_ids, 'job_status');
+        return $log;
+    }
+
+    /**
+     *
+     */
+    public function update_job_status_from_control() {
+        $res = false;
+
+        if (isset($_POST['term_id']) && isset($_POST['job_id'])) {
+            $res = $this->add_job_status($_POST['job_id'], $_POST['term_id']);
+            if ($res)
+                $res = get_term($_POST['term_id'])->name;
+        }
+
+        wp_die(json_encode($res));
+    }
+
+    /**
+     *
+     */
+    public function update_job_status() {
+        $res = false;
+        if ($_POST['status'] && is_array($_POST['jobs']) && $_POST['jobs']) {
+            foreach ($_POST['jobs'] as $job) {
+                $res = $this->add_job_status($job, $_POST['status']);
+            }
+        }
+        wp_die(json_encode($res));
     }
 
     /**
@@ -95,6 +147,7 @@ class CA_JOBS {
     public function manage_edit_job_status_columns($columns){
         $columns['external_description'] = 'External Description';
         $columns['job_status_default'] = 'Default';
+        $columns['order'] = 'Order';
         unset($columns['slug']);
         unset($columns['posts']);
 
@@ -116,6 +169,8 @@ class CA_JOBS {
                 $term_id_db = get_option('_update_job_status_default');
                 echo '<input name="job_status_default" type="radio" term_id="' . $term_id . '" ' . checked($term_id_db,$term_id,0) . '>';
                 break;
+            case 'order':
+                $content = get_term_meta($term_id, '_job_order', true );
             default:
                 break;
         }
@@ -129,6 +184,40 @@ class CA_JOBS {
         if ( isset( $_POST['job_external_description'] ) ) {
             update_term_meta($term_id, '_job_external_description', $_POST['job_external_description'] );
         }
+        if ( isset( $_POST['job_order'] ) ) {
+            global $wpdb;
+            $job_order = intval($_POST['job_order']);
+            $has_order = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}termmeta WHERE term_id != {$term_id} AND meta_key='_job_order' AND meta_value='{$job_order}'");
+
+            if (!$has_order) {
+                update_term_meta($term_id, '_job_order', $job_order);
+            } else if ($_REQUEST['action'] === 'editedtag') {
+                $location = add_query_arg( array(
+                    'error' => 1
+                ), wp_get_referer() );
+                wp_redirect($location);
+                exit;
+            }
+        }
+    }
+
+    /**
+     * @param $term
+     * @param $taxonomy
+     * @return WP_Error || $term
+     */
+    public function pre_insert_term($term, $taxonomy) {
+
+        if ($taxonomy === 'job_status' && isset($_POST['job_order'])) {
+            global $wpdb;
+            $job_order = intval($_POST['job_order']);
+            $has_order = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}termmeta WHERE meta_key='_job_order' AND meta_value='{$job_order}'");
+            if ($has_order) {
+                return new WP_Error('error','The \'order\' has the the same number');
+            }
+        }
+
+        return $term;
     }
 
     /**
@@ -141,6 +230,11 @@ class CA_JOBS {
             <input type="text" name="job_external_description" id="job_external_description" value="">
             <p class="description">External Status Description</p>
         </div>
+        <div class="form-field">
+            <label for="job_order">Order</label>
+            <input type="text" name="job_order" id="job_order" value="">
+            <p class="description">Order</p>
+        </div>
         <?php
     }
 
@@ -149,12 +243,21 @@ class CA_JOBS {
      */
     public function job_status_edit_form_fields($term) {
         $term_id = $term->term_id;
-        $job_external_desc = get_term_meta($term_id, '_job_external_description', true );?>
+        $job_external_desc = get_term_meta($term_id, '_job_external_description', true );
+        $job_order = get_term_meta($term_id, '_job_order', true );
+        ?>
         <tr class="form-field">
             <th scope="row" valign="top"><label for="job_external_status">External Status</label></th>
             <td>
                 <input type="text" name="job_external_description" id="job_external_description" value="<?=$job_external_desc?>">
                 <p class="description">External Status Description</p>
+            </td>
+        </tr>
+        <tr class="form-field">
+            <th scope="row" valign="top"><label for="job_order">Order</label></th>
+            <td>
+                <input type="text" name="job_order" id="job_order" value="<?=$job_order?>">
+                <p class="description">Order</p>
             </td>
         </tr>
         <?php
@@ -193,12 +296,10 @@ class CA_JOBS {
                 </td>
                 <td class="woocommerce-orders-table__cell woocommerce-orders-table__cell-job-status" data-title="Order">
                     <?php
-                        $term = wp_get_object_terms( $job->ID, 'job_status');
-
-                        if (!$term || $term[0]->slug === 'default') {
+                        //$term = wp_get_object_terms( $job->ID, 'job_status');
+                        $term_id = get_post_meta( $job->ID , '_job_last_status' , true );
+                        if (!$term_id) {
                             $term_id = get_option('_update_job_status_default');
-                        } else {
-                            $term_id = $term[0]->term_id;
                         }
                         if ($term_id) {
                             $job_external_desc = get_term_meta($term_id, '_job_external_description', true );
@@ -226,11 +327,105 @@ class CA_JOBS {
     }
 
     /**
+     *
+     */
+    public function woocommerce_account_jobs_new_endpoint() {
+        $term_statuses = get_terms([
+            'taxonomy' => 'job_status',
+            'hide_empty' => false
+        ]);
+        ?>
+        <h1>Jobs Choose Status</h1>
+        <div class="job_container">
+            <select id="job_choose_status">
+                <option></option>
+            <?php foreach ($term_statuses as $status) {
+                if ($status->slug !== 'default') { $statuses[$status->term_id] = $status->name; ?>
+                <option value="<?=$status->term_id?>"><?=$status->name?></option>
+            <?php }
+            } ?>
+            </select>
+            <?php
+            $query = new WP_Query([
+                'post_type' => 'job',
+                'posts_per_page' => -1,
+                'meta_key' => '_customer_id',
+                'meta_value' => get_current_user_id()
+            ]);
+            $jobs = $query->posts;
+            ?>
+            <select id="job_choose_job" multiple>
+                <option></option>
+                <?php foreach ($jobs as $job) { ?>
+                    <option value="<?=$job->ID?>"><?=$job->post_title?></option>
+                <?php } ?>
+            </select>
+            <input id="job_scan_number" type="button" value="Scan Job Number">
+        </div>
+        <?php
+            global $wpdb;
+            $user_id = get_current_user_id();
+            $user = wp_get_current_user()->display_name;
+            $current_page = array_slice(explode('/',$_SERVER['REQUEST_URI']), -2, 1)[0];
+            $current_page = $current_page === 'jobs_new' ? 1 : intval($current_page);
+
+            $logs_count = $wpdb->get_var("SELECT count(*) FROM {$wpdb->prefix}jobs_logs WHERE user_id = {$user_id}");
+            $limit = 10;
+            $pages = floor($logs_count / $limit) + 1;
+
+            $offset = $current_page ? $limit*(intval($current_page) - 1) : 0;
+
+            $logs = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}jobs_logs WHERE user_id = {$user_id} ORDER BY log_time DESC LIMIT {$limit} OFFSET {$offset}");
+
+        ?>
+        <h1>Logs</h1>
+        <table id="job-logs" class="woocommerce-orders-table woocommerce-MyAccount-orders shop_table shop_table_responsive my_account_orders account-orders-table">
+            <thead>
+                <tr>
+                    <th><span class="nobr">Job Number</span></th>
+                    <th><span class="nobr">Status</span></th>
+                    <th><span class="nobr">User</span></th>
+                    <th><span class="nobr">Time</span></th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php if ($logs) { ?>
+                <?php foreach ($logs as $log) { ?>
+                    <tr class="woocommerce-orders-table__row woocommerce-orders-table__row--status-on-hold order">
+                        <td><?=$log->job_number?></td>
+                        <td><?=$statuses[$log->job_status]?></td>
+                        <td><?=$user?></td>
+                        <td><?=$log->log_time?></td>
+                    </tr>
+                <?php } ?>
+            <?php } else { ?>
+                <tr class="woocommerce-orders-table__row woocommerce-orders-table__row--status-on-hold order">
+                    <td colspan="4" style="text-align: center">Jobs not been sсanned</td>
+                </tr>
+            <?php } ?>
+            </tbody>
+        </table>
+        <?php if ( 1 < $pages ) : ?>
+            <div class="woocommerce-pagination woocommerce-pagination--without-numbers woocommerce-Pagination">
+                <?php if ( 1 !== $current_page ) : ?>
+                    <a class="woocommerce-button woocommerce-button--previous woocommerce-Button woocommerce-Button--previous button" href="<?php echo esc_url( wc_get_endpoint_url( 'jobs_new', $current_page - 1 ) ); ?>"><?php _e( 'Previous', 'woocommerce' ); ?></a>
+                <?php endif; ?>
+
+                <?php if ( intval( $pages ) !== $current_page ) : ?>
+                    <a class="woocommerce-button woocommerce-button--next woocommerce-Button woocommerce-Button--next button" href="<?php echo esc_url( wc_get_endpoint_url( 'jobs_new', $current_page + 1 ) ); ?>"><?php _e( 'Next', 'woocommerce' ); ?></a>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+        <?php
+    }
+
+    /**
      * @param $items
      * @return mixed
      */
     public function woocommerce_account_menu_items($items) {
-        $items['jobs'] = __( 'Jobs', 'iconic' );
+        $items['jobs'] = 'Jobs';
+        $items['jobs_new'] = 'Jobs New';
         return $items;
     }
 
@@ -241,6 +436,7 @@ class CA_JOBS {
     public function manage_job_posts_columns($columns) {
         unset( $columns['date'] );
         $columns['number'] = 'Number';
+        $columns['order_date'] = 'Order Date';
         $columns['status'] = 'Status';
         $columns['sku'] = 'SKU';
         $columns['product_code'] = 'Product Code';
@@ -248,6 +444,9 @@ class CA_JOBS {
         $columns['order_status'] = 'Order Status';
         $columns['customer'] = 'Customer';
         $columns['description'] = 'Description';
+        $columns['attributes'] = 'Attributes';
+        $columns['options'] = 'Options';
+        $columns['control_status'] = 'Control Status';
 
         return $columns;
     }
@@ -263,14 +462,17 @@ class CA_JOBS {
             case 'number' :
                 echo get_post_meta( $post_id , '_job_number' , true );
                 break;
+            case 'order_date' :
+                echo get_post_meta( $post_id , '_order_date' , true );
+                break;
             case 'status' :
-                $term = wp_get_object_terms( $post_id, 'job_status');
-                if (!$term || $term[0]->slug === 'default') {
+                $term_id = get_post_meta( $post_id , '_job_last_status' , true );
+                if (!$term_id) {
                     $term_id = get_option('_update_job_status_default');
                     $term = get_term($term_id,'job_status');
                     $job_status = $term->name . " (Default)";
                 }else{
-                    $term = $term[0];
+                    $term = get_term($term_id);
                     $job_status = $term->name;
                 }
                 echo $job_status ? $job_status : 'None';
@@ -318,6 +520,46 @@ class CA_JOBS {
                 break;
             case 'description' :
                 echo get_post($post_id)->post_content;
+                break;
+            case 'attributes' :
+                $lines = get_post_meta( $post_id , '_attributes' , true );
+                if (!$lines) {
+                    echo 'None'; break;
+                }
+                foreach ($lines as $key => $value){
+                    echo "<b>$key:</b> $value";
+                }
+                break;
+            case 'options' :
+                $lines = get_post_meta( $post_id , '_options' , true );
+                if (!$lines) {
+                    echo 'None'; break;
+                }
+                foreach ($lines as $key => $value){
+                    echo "<b>$key:</b> $value";
+                }
+                break;
+            case 'control_status' :
+                $term_statuses_by_job = wp_get_object_terms( $post_id, 'job_status');
+                foreach ($term_statuses_by_job as $status) {
+                    $statuses_by_job[$status->term_id] = $status->slug;
+                }
+
+                $term_statuses = get_terms([
+                    'taxonomy' => 'job_status',
+                    'hide_empty' => false
+                ]);
+                foreach ($term_statuses as $status) {
+                    if ($status->slug !== 'default')
+                        $statuses[$status->term_id] = get_term_meta($status->term_id, '_job_order', true);
+                }
+                asort($statuses);
+                $last_status = get_post_meta($post_id, '_job_last_status', true);
+                foreach ($statuses as $term_id => $status) {
+                    if ($last_status && intval($last_status) === $term_id) $class = 'class="active"'; else $class = '';
+                    echo '<input ' . $class . ' job-id="' . $post_id . '" term-id="' . $term_id . '" type="checkbox" ' . checked(isset($statuses_by_job[$term_id]), 1, 0) . '>';
+                }
+
                 break;
         }
     }
@@ -407,6 +649,15 @@ class CA_JOBS {
 
         }
 
+        if( $typenow == 'job'
+            && $pagenow == 'term.php'
+            && isset( $_REQUEST['error'] )
+            && $_REQUEST['error'] == 1 ) {
+
+            echo "<div class=\"error\"><p>The 'order' has the the same number</p></div>";
+
+        }
+
     }
 
     /**
@@ -464,6 +715,9 @@ class CA_JOBS {
             update_post_meta($id, '_order_price', $job['order_price']);
             update_post_meta($id, '_order_id',    $job['order_id']);
             update_post_meta($id, '_product_code', $job['product_code']);
+            update_post_meta($id, '_order_date',    $job['order_date']);
+            update_post_meta($id, '_attributes', $job['attributes']);
+            update_post_meta($id, '_options', $job['options']);
         }
     }
 
@@ -484,6 +738,18 @@ class CA_JOBS {
             $order_line = 0;
             foreach ($order->get_items() as $item){
                 $order_line++;
+
+                $attributes = [];
+                $options = [];
+
+                foreach ($item->get_formatted_meta_data( '' ) as $meta) {
+                    if (strpos($meta->key, 'pa_') !== false) {
+                        $attributes[$meta->display_key] = $meta->display_value;
+                    } else {
+                        $options[$meta->display_key] = $meta->display_value;
+                    }
+                }
+
                 $add_price = 0;
                 if ($tmcartepo_data = $item->get_meta('_tmcartepo_data')) {
                     foreach ($tmcartepo_data as $tmcartepo) {
@@ -505,8 +771,11 @@ class CA_JOBS {
                         'order_id' => $order_id,
                         'order_price' => ($product) ? floatval($product->get_price()) + floatval($add_price) : 0,
                         'product_id' => $item->get_product_id(),
-                        'product_sku' => ($product) ? $product->get_sku() : 0
+                        'product_sku' => ($product) ? $product->get_sku() : 0,
                         'product_code' => get_post_meta($item->get_variation_id(),'product_code', true),
+                        'order_date' => $order->get_date_created()->date('Y-m-d'),
+                        'attributes' => $attributes,
+                        'options' => $options
                     ];
                 }
             }
@@ -533,10 +802,86 @@ class CA_JOBS {
      */
     public function wp_init()
     {
+        if ( ! defined( 'IFRAME_REQUEST' ) && version_compare( get_option( 'ca_jobs_version' ), $this->version, '<' ) ) {
+            $this->install();
+        }
+
         $this->register_post_type_job();
         $this->register_taxonomy_job_status();
 
         add_rewrite_endpoint( 'jobs', EP_PAGES );
+        add_rewrite_endpoint( 'jobs_new', EP_PAGES );
+    }
+
+    /**
+     *
+     */
+    public function install()
+    {
+        $this->create_tables();
+        $this->update_class_version();
+    }
+
+    /**
+     *
+     */
+    private function create_tables()
+    {
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+        global $wpdb;
+
+        $tables = "
+            CREATE TABLE {$wpdb->prefix}jobs_logs (
+                id BIGINT AUTO_INCREMENT NOT NULL,    
+                user_id BIGINT NOT NULL,
+                job_id BIGINT NOT NULL,
+                job_number VARCHAR(32),
+                job_status VARCHAR(32),
+                log_time datetime NOT NULL default '0000-00-00 00:00:00',
+                PRIMARY KEY (id)
+            );
+        ";
+
+        dbDelta($tables);
+    }
+
+    /**
+     * @param $user_id
+     * @param $job_id
+     * @param $job_number
+     * @param $job_status
+     */
+    private function save_log($user_id, $job_id, $job_number, $job_status)
+    {
+        global $wpdb;
+
+        $log_time = current_time('mysql');
+
+        $wpdb->insert(
+            $wpdb->prefix . 'jobs_logs',
+            [
+                'user_id' => $user_id,
+                'job_id' => $job_id,
+                'job_number' => $job_number,
+                'job_status' => $job_status,
+                'log_time' => $log_time
+            ]
+        );
+        return [
+            'number' => $job_number,
+            'status' => get_term($job_status)->name,
+            'user' => wp_get_current_user()->display_name,
+            'time' => $log_time
+        ];
+    }
+
+    /**
+     *
+     */
+    private function update_class_version()
+    {
+        delete_option( 'ca_jobs_version' );
+        add_option( 'ca_jobs_version', $this->version );
     }
 
     /**
@@ -712,16 +1057,20 @@ class CA_JOBS {
     {
         global $post;
 
-        $term = wp_get_object_terms( $post->ID, 'job_status');
-        if ($term) $job_status = $term[0]->term_id;
-        if (!$job_status) $job_status = get_option('_update_job_status_default');
+        $job_status = get_post_meta( $post->ID , '_job_last_status' , true );
+        if (!$job_status) {
+            $job_status = get_option('_update_job_status_default');
+        }
+
         $select = "";
 
         wp_nonce_field('save_job_status', 'nonce_job_status');
 
         $job_statuses = get_terms([
             'taxonomy' => 'job_status',
-            'hide_empty' => false
+            'hide_empty' => false,
+            'meta_key' => '_job_order',
+            'orderby' => 'meta_value_num'
         ]);
 
         $select .= "<select name='_job_status'>";
@@ -757,7 +1106,9 @@ class CA_JOBS {
     {
         if ( !empty($_POST) ) {
             if ($_POST['_job_status']) {
-                wp_set_object_terms($post_id, intval($_POST['_job_status']), 'job_status');
+                $terms = wp_get_object_terms($post_id, 'job_status', ['fields' => 'ids']);
+                wp_set_object_terms($post_id, array_merge($terms, [intval($_POST['_job_status'])]), 'job_status');
+                update_post_meta($post_id, '_job_last_status', intval($_POST['_job_status']));
             }
             if ($_POST['_job_external_description']) {
                 update_post_meta($post_id, '_job_external_description', $_POST['_job_external_description']);
@@ -777,6 +1128,14 @@ class CA_JOBS {
             $this->version,
             true
         );
+
+        wp_register_style(
+            'ca-jobs-css',
+            plugins_url($this->plugin_name . '/assets/css/admin-style.css'),
+            [],
+            $this->version
+        );
+
         //wp_localize_script('jquery', 'wc_api_custom', ['ajaxUrl' => admin_url('admin-ajax.php')]);
 
         if (isset($_GET['page']) && $_GET['page'] === 'cutting-art') {
@@ -785,13 +1144,19 @@ class CA_JOBS {
         }
 
         if (isset($_GET['taxonomy']) && $_GET['taxonomy'] === 'job_status') {
-            wp_localize_script('jquery', 'caJobs', ['ajaxUrl' => admin_url('admin-ajax.php')]);
+            wp_localize_script('jquery', 'caJobs', [
+                'ajaxUrl' => admin_url('admin-ajax.php')
+            ]);
             wp_enqueue_script('ca-jobs-js');
         }
 
         if (isset($_GET['post_type']) && $_GET['post_type'] === 'job') {
-            wp_localize_script('jquery', 'caJobs', ['isJobs' => true, 'ajaxUrl' => admin_url('admin-ajax.php')]);
+            wp_localize_script('jquery', 'caJobs', [
+                'isJobs' => true, 'ajaxUrl' => admin_url('admin-ajax.php'),
+                'default' => get_term_by('slug', 'default', 'job_status')
+            ]);
             wp_enqueue_script('ca-jobs-js');
+            wp_enqueue_style('ca-jobs-css');
         }
     }
 
@@ -808,8 +1173,34 @@ class CA_JOBS {
             true
         );
 
-        if (is_account_page() && isset($_GET['product_line'])) {
+        wp_register_script(
+            'ca-jobs-select2-js',
+            plugins_url($this->plugin_name . '/assets/js/select2.min.js'),
+            ['jquery'],
+            $this->version,
+            true
+        );
+
+        wp_register_style(
+            'ca-jobs-select2-css',
+            plugins_url($this->plugin_name . '/assets/css/select2.min.css'),
+            [],
+            $this->version
+        );
+
+        wp_register_style(
+            'ca-jobs-front-css',
+            plugins_url($this->plugin_name . '/assets/css/front.css'),
+            [],
+            $this->version
+        );
+
+        if (is_account_page()) {
+            wp_enqueue_script('ca-jobs-select2-js');
+            wp_enqueue_style('ca-jobs-select2-css');
             wp_enqueue_script('ca-jobs-front-js');
+            wp_enqueue_style('ca-jobs-front-css');
+            wp_localize_script('jquery', 'job', ['ajaxUrl' => admin_url('admin-ajax.php')]);
         }
     }
 
