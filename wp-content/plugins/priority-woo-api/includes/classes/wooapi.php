@@ -354,9 +354,11 @@ class WooAPI extends \PriorityAPI\API
                         $lists = $this->getPriceLists();
                         $meta  = get_user_meta($user_id, '_priority_price_list');
 
+                        if (empty($meta)) $meta[0] = "no-selected";
+
                         $html  = '<input type="hidden" name="attach-list-nonce" value="' . wp_create_nonce('attach-list') . '" form="attach_list_form" />';
                         $html .= '<select name="price_list[' . $user_id . ']" onchange="window.attach_list_form.submit();" form="attach_list_form">';
-                            $html .= '<option value="no-selected" ' . selected("no-selected", $meta[0]) . '>No selected</option>';
+                            $html .= '<option value="no-selected" ' . selected("no-selected", $meta[0], false) . '>Not Selected</option>';
                         foreach($lists as $list) {
 
                             $selected = (isset($meta[0]) && $meta[0] == $list['price_list_code']) ? 'selected' : '';
@@ -699,7 +701,7 @@ class WooAPI extends \PriorityAPI\API
                     $attributes = [];
                     if ($item['PARTUNSPECS_SUBFORM']) {
                         foreach ($item['PARTUNSPECS_SUBFORM'] as $attr) {
-                            if ($attr['SPECNAME'] !== 'Material')
+                            if ($attr['SPECNAME'] !== 'Material' && $attr['ROYY_VALUEDES'])
                                 $attributes[$attr['SPECNAME']] = $attr['ROYY_VALUEDES'];
                         }
                     }
@@ -846,6 +848,8 @@ class WooAPI extends \PriorityAPI\API
                 'Error Sync Items Priority Variation',
                 $response['body']
             );
+
+            exit(json_encode(['status' => 0, 'msg' => 'Error Sync Items Priority Variation']));
 
         }
 
@@ -1089,11 +1093,10 @@ class WooAPI extends \PriorityAPI\API
                     foreach ($item_meta as $tm_item) {
                         $new_data[] = [
                             'SPEC' => addslashes($tm_item['name']),
-                            'VALUE' => addslashes($tm_item['value'])
+                            'VALUE' => htmlspecialchars(addslashes($tm_item['value']))
                         ];
                     }
                 }
-
 
                 /*end T151*/
 
@@ -1330,6 +1333,7 @@ class WooAPI extends \PriorityAPI\API
     // filter products by user price list
     public function filterProductsByPriceList($ids)
     {
+
         if($user_id = get_current_user_id()) {
 
             $meta = get_user_meta($user_id, '_priority_price_list');
@@ -1346,22 +1350,24 @@ class WooAPI extends \PriorityAPI\API
                 ARRAY_A
             );
 
-                    
             $ids = [];
         
             // get product id
             foreach($products as $product) {
                 if ($id = wc_get_product_id_by_sku($product['product_sku'])) {
+                    $parent_id = get_post($id)->post_parent;
+                    if ($parent_id) $ids[] = $parent_id;
                     $ids[] = $id;
                 }
             }
 
+            $ids = array_unique($ids);
+
             // there is no products assigned to price list, return 0
             if (empty($ids)) return 0;
-            
+
             // return ids
             return $ids;
-
 
         }
 
@@ -1475,6 +1481,5 @@ class WooAPI extends \PriorityAPI\API
         return $price;
 
     }
-     
 
 }

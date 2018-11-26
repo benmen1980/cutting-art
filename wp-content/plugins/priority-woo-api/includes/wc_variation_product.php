@@ -27,6 +27,7 @@ function create_product_variable( $data ){
 
     if (!empty($data['sku']) && $product_id) {
         $post_data['ID'] = $product_id;
+
         // Update the product (post data)
         $product_id = wp_update_post( $post_data );
     } else {
@@ -99,60 +100,66 @@ function create_product_variable( $data ){
 
     $product_attributes = [];
 
-    foreach( $data['attributes'] as $key => $terms ){
+    if (is_array($data['attributes'])) {
+        foreach ($data['attributes'] as $key => $terms) {
 
-        $taxonomy_id = wc_attribute_taxonomy_id_by_name($key);
-        $taxonomy_name = wc_attribute_taxonomy_name( $key );
+            $taxonomy_id = wc_attribute_taxonomy_id_by_name($key);
+            $taxonomy_name = wc_attribute_taxonomy_name($key);
 
-        if (!$taxonomy_id) {
-            wc_create_attribute([
-                'name' => $key,
-            ]);
-            register_taxonomy(
-                $taxonomy_name,
-                apply_filters( 'woocommerce_taxonomy_objects_' . $taxonomy_name, array( 'product' ) ),
-                apply_filters( 'woocommerce_taxonomy_args_' . $taxonomy_name, array(
-                    'labels'       => array(
-                        'name' => wc_sanitize_taxonomy_name($key),
-                    ),
-                    'hierarchical' => true,
-                    'show_ui'      => false,
-                    'query_var'    => true,
-                    'rewrite'      => false,
-                ) )
+            if (!$taxonomy_id) {
+                wc_create_attribute([
+                    'name' => $key,
+                ]);
+                register_taxonomy(
+                    $taxonomy_name,
+                    apply_filters('woocommerce_taxonomy_objects_' . $taxonomy_name, array('product')),
+                    apply_filters('woocommerce_taxonomy_args_' . $taxonomy_name, array(
+                        'labels' => array(
+                            'name' => wc_sanitize_taxonomy_name($key),
+                        ),
+                        'hierarchical' => true,
+                        'show_ui' => false,
+                        'query_var' => true,
+                        'rewrite' => false,
+                    ))
+                );
+            }
+
+            $product_attributes[$taxonomy_name] = array(
+                'name' => $taxonomy_name,
+                'value' => '',
+                'position' => '',
+                'is_visible' => 0,
+                'is_variation' => 1,
+                'is_taxonomy' => 1
             );
+
+            foreach ($terms as $value) {
+                $term_name = ucfirst($value);
+                $term_slug = sanitize_title($value);
+
+                // Check if the Term name exist and if not we create it.
+                if (!term_exists($value, $taxonomy_name))
+                    wp_insert_term($term_name, $taxonomy_name, array('slug' => $term_slug)); // Create the term
+
+                // Set attribute values
+                wp_set_object_terms($product_id, $term_name, $taxonomy_name, true);
+            }
         }
 
-        $product_attributes[$taxonomy_name] = array (
-            'name'         => $taxonomy_name,
-            'value'        => '',
-            'position'     => '',
-            'is_visible'   => 0,
-            'is_variation' => 1,
-            'is_taxonomy'  => 1
-        );
+        //$product_attributes = array_reverse($product_attributes, 1);
 
-        foreach( $terms as $value ){
-            $term_name = ucfirst($value);
-            $term_slug = sanitize_title($value);
+        /**
+         * t205
+         */
+        $product_attributes_old = get_post_meta($product_id, '_product_attributes', true);
+        $product_attributes = array_merge($product_attributes, is_array($product_attributes_old) ? $product_attributes_old : []);
+        /**
+         * end t205
+         */
 
-            // Check if the Term name exist and if not we create it.
-            if( ! term_exists( $value, $taxonomy_name ) )
-                wp_insert_term( $term_name, $taxonomy_name, array('slug' => $term_slug ) ); // Create the term
-
-            // Set attribute values
-            wp_set_object_terms( $product_id, $term_name, $taxonomy_name, true );
-        }
+        update_post_meta($product_id, '_product_attributes', $product_attributes);
     }
-    //$product_attributes = array_reverse($product_attributes, 1);
-    /**
-     * t205
-     */
-    $product_attributes = array_merge( $product_attributes, get_post_meta($product_id, '_product_attributes', true));
-    /**
-     * end t205
-     */
-    update_post_meta( $product_id, '_product_attributes', $product_attributes );
     $product->save(); // Save the data
 
     return $product_id;
@@ -211,7 +218,7 @@ function create_product_variation( $product_id, $variation_data ){
         $post_term_names =  wp_get_post_terms( $product_id, $taxonomy, array('fields' => 'names') );
 
         // Check if the post term exist and if not we set it in the parent variable product.
-        if( ! in_array( $term_name, $post_term_names ) )
+        if( is_array($post_term_names) && ! in_array( $term_name, $post_term_names ) )
             wp_set_post_terms( $product_id, $term_name, $taxonomy, true );
 
         // Set/save the attribute data in the product variation
@@ -246,6 +253,7 @@ function create_product_variation( $product_id, $variation_data ){
     }*/
 
     update_post_meta( $variation_id, 'product_code', $variation_data['product_code'] );
+
     $variation->set_weight(''); // weight (reseting)
 
     $variation->save(); // Save the data
