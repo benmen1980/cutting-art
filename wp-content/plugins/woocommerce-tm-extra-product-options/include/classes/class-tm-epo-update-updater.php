@@ -121,15 +121,15 @@ final class TM_EPO_UPDATE_Manager {
 
 	public function tm_update_plugins( $transient ) {
 		if ( empty( $transient->checked ) ) {
-			return $transient;
+			//return $transient;
 		}
 
-		$remote_version = $this->remote_api_call( 'version' );
+		//$remote_version = $this->remote_api_call( 'version' );
+		$remote_version = $this->remote_api_call( 'new_version', TRUE );
 
-		if ( version_compare( $this->current_version, $remote_version, '<' ) ) {
-			$obj = new stdClass();
+		if ( $remote_version && version_compare( $this->current_version, $remote_version->new_version, '<' ) ) {
+			$obj = $remote_version;
 			$obj->slug = $this->slug;
-			$obj->new_version = $remote_version;
 
 			if ( TM_EPO_LICENSE()->check_license() ) {
 				$obj->url = $this->update_path;

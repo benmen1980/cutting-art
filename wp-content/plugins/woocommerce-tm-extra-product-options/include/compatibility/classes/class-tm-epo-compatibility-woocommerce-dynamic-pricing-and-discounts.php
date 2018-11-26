@@ -83,7 +83,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_dynamic_pricing_and_discounts {
 		add_filter( 'tm_epo_settings_settings', array( $this, 'tm_epo_settings_settings' ), 10, 1 );
 
 		add_filter( 'wc_epo_product_price_rules', array( $this, 'wc_epo_product_price_rules' ), 10, 2 );
-		add_filter( 'wc_epo_template_args_tm_totals', array( $this, 'wc_epo_template_args_tm_totals' ), 10, 1 );
+		add_filter( 'wc_epo_template_args_tm_totals', array( $this, 'wc_epo_template_args_tm_totals' ), 10, 2 );
 		add_action( 'wc_epo_template_tm_totals', array( $this, 'wc_epo_template_tm_totals' ), 10, 1 );
 
 		add_action( 'woocommerce_tm_epo_price_compatibility', array( $this, 'woocommerce_tm_epo_price_compatibility' ), 10, 2 );
@@ -190,25 +190,35 @@ final class TM_EPO_COMPATIBILITY_woocommerce_dynamic_pricing_and_discounts {
 	
 		if ( class_exists('RP_WCDPD_Settings') && class_exists('RP_WCDPD_Promotion_Display_Price_Override') && RP_WCDPD_Settings::get('promo_display_price_override') ){
 			
-			RP_WCDPD_Promotion_Display_Price_Override::get_instance()->remove_all_price_hooks();
+			
 
 			if ( function_exists( 'WC_CP' ) && version_compare( WC_CP()->version, "3.8", "<" ) && tc_get_product_type( $product ) == "composite" && is_callable( array( $product, 'get_base_price' ) ) ) {
+				RP_WCDPD_Promotion_Display_Price_Override::get_instance()->remove_all_price_hooks();
 				$price = $product->get_base_price();
+				RP_WCDPD_Promotion_Display_Price_Override::get_instance()->add_all_price_hooks();
 			} else {
-				$price = $product->get_price();
-			}
-
-			RP_WCDPD_Promotion_Display_Price_Override::get_instance()->add_all_price_hooks();
+				if ( class_exists('RP_WCDPD_Settings') && RP_WCDPD_Settings::get('product_pricing_change_display_prices') ){
+					RP_WCDPD_Promotion_Display_Price_Override::get_instance()->remove_all_price_hooks();
+					$price = $product->get_price();
+					RP_WCDPD_Promotion_Display_Price_Override::get_instance()->add_all_price_hooks();
+				}
+			}			
 
 		}elseif( version_compare( RP_WCDPD_VERSION, '2.2', '>=' ) && class_exists('RP_WCDPD_Product_Price_Override')){
 
-			RP_WCDPD_Product_Price_Override::get_instance()->remove_all_price_hooks();
+			
 			if ( function_exists( 'WC_CP' ) && version_compare( WC_CP()->version, "3.8", "<" ) && tc_get_product_type( $product ) == "composite" && is_callable( array( $product, 'get_base_price' ) ) ) {
+				RP_WCDPD_Product_Price_Override::get_instance()->remove_all_price_hooks();
 				$price = $product->get_base_price();
+				RP_WCDPD_Product_Price_Override::get_instance()->add_all_price_hooks();
 			} else {
-				$price = $product->get_price();
+				if ( class_exists('RP_WCDPD_Settings') && RP_WCDPD_Settings::get('product_pricing_change_display_prices') ){
+					RP_WCDPD_Product_Price_Override::get_instance()->remove_all_price_hooks();
+					$price = $product->get_price();
+					RP_WCDPD_Product_Price_Override::get_instance()->add_all_price_hooks();
+				}
 			}
-			RP_WCDPD_Product_Price_Override::get_instance()->add_all_price_hooks();
+			
 		}
 
 		return $price;
@@ -229,9 +239,11 @@ final class TM_EPO_COMPATIBILITY_woocommerce_dynamic_pricing_and_discounts {
 		if ( defined('RP_WCDPD_VERSION') && version_compare( RP_WCDPD_VERSION, '2.2', '>=' ) ){
 			echo 'data-tm-epo-dpd-product-price-discounted="1" ';	
 		}
+
+		echo 'data-tm-epo-dpd-attributes-to-id="'.esc_attr( $args['attributes_to_id'] ).'" ';	
 	}
 
-	public function wc_epo_template_args_tm_totals( $args ) {
+	public function wc_epo_template_args_tm_totals( $args, $product ) {
 		$args["tm_epo_dpd_suffix"] = TM_EPO()->tm_epo_dpd_suffix;
 		$args["tm_epo_dpd_prefix"] = TM_EPO()->tm_epo_dpd_prefix;
 		$args["tm_epo_dpd_original_final_total"] = TM_EPO()->tm_epo_dpd_original_final_total;
@@ -242,6 +254,30 @@ final class TM_EPO_COMPATIBILITY_woocommerce_dynamic_pricing_and_discounts {
 		if ( $args["price_override"] == "1" ) {
 			$args["fields_price_rules"] = 1;
 		}
+
+		$attributes_to_id = array();
+		if ( tc_get_product_type($product) == 'variable'){
+
+			$attributes_ids = $product->get_attributes();
+			
+			$pid = tc_get_id($product);
+
+			foreach ($attributes_ids as $attkey => $attvalue) {
+
+
+				$terms = wp_get_post_terms( $pid, $attkey, array( 'fields' => 'all' ) );
+				if ( ! is_wp_error($terms)){
+					foreach ($terms as $term) {
+						if ($term){
+							$attributes_to_id[ 'attribute_' . $attkey ][ $term->slug ] = $term->term_id;	
+						}					
+					}
+				}
+
+			}
+		}
+
+		$args["attributes_to_id"] = esc_html( json_encode( (array) $attributes_to_id ) );
 
 		return $args;
 	}
@@ -259,6 +295,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_dynamic_pricing_and_discounts {
 								"max"   => $pricerule["max"],
 								"value" => ($pricerule["type"] != "percentage") ? apply_filters( 'wc_epo_product_price', $pricerule["value"], "", FALSE ) : $pricerule["value"],
 								"type"  => $pricerule["type"],
+								'conditions' => isset($pricerule["conditions"])?$pricerule["conditions"]:array(),
 							);
 						}
 					}
@@ -269,6 +306,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_dynamic_pricing_and_discounts {
 							"max"   => $pricerule["max"],
 							"value" => ($pricerule["type"] != "percentage") ? apply_filters( 'wc_epo_product_price', $pricerule["value"], "", FALSE ) : $pricerule["value"],
 							"type"  => $pricerule["type"],
+							'conditions' => isset($pricerule["conditions"])?$pricerule["conditions"]:array(),
 						);
 					}
 				}
@@ -641,6 +679,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_dynamic_pricing_and_discounts {
 	                $price['is_multiprice'] = FALSE;
 
 	                $product_rules = RP_WCDPD_Product_Pricing::get_applicable_rules_for_product($product,NULL,true);
+
 	                $all_rules = array();
 	                foreach ($product_rules as $k => $rule) {
 	                	$all_rules[] = array(
@@ -651,81 +690,167 @@ final class TM_EPO_COMPATIBILITY_woocommerce_dynamic_pricing_and_discounts {
 
 				}else{
 
+
 					if ($product->is_type('variation')) {
 		                $product = RightPress_WC_Legacy::product_variation_get_parent($product);
 		            }
+		            //$product_rules = RP_WCDPD_Product_Pricing::get_applicable_rules_for_product($product,NULL,true);
+		            //var_dump_pre($product_rules);die();
 		            $variation_rules = array();
 		            foreach ($product->get_available_variations() as $variation_data) {
 		                $variation = wc_get_product($variation_data['variation_id']);
-		                if ($rule = $this->get_applicable_volume_rule($variation)) {
+
+		                $product_rules = RP_WCDPD_Product_Pricing::get_applicable_rules_for_product($variation,NULL,true);
+		                foreach ($product_rules as $k => $rule) {
+		                	$variation_rules[ $variation_data['variation_id'] ][] = array(
+			                    'product'   => $variation,
+			                    'rule'      =>  $rule,
+			                );
+		                }
+
+		                /*if ($rule = $this->get_applicable_volume_rule($variation)) {
 		                    $variation_rules[] = array(
 		                        'product'   => $variation,
 		                        'rule'      => $rule,
 		                    );
-		                }
+		                }*/
 		            }
 
 		            $all_rules = $variation_rules;
-		           	$price['is_multiprice'] = FALSE;
+		           	$price['is_multiprice'] = TRUE;
 				}
 				$table_data = array();
-				foreach ($all_rules as $single) {
-					$_product = $single['product'];
-					$_rule = $single['rule'];
-					if (!$_rule){
-						continue;
-					}
-					$original_price = $_product->get_price();
-					if (isset($_rule['quantity_ranges'])){
-						$quantity_ranges = $_rule['quantity_ranges'];
-						if (RP_WCDPD_Settings::get('promo_volume_pricing_table_missing_ranges') === 'display') {
-				            $quantity_ranges = $this->add_missing_ranges($quantity_ranges, $_product);
-				        }
-
-				        foreach ($quantity_ranges as $quantity_range) {
-
-				        	switch ($quantity_range['pricing_method']) {
-				        		case 'discount__percentage':
-				        			$quantity_range['pricing_method'] = 'percentage';
-				        			break;
-				        		case 'discount__amount':
-				        			$quantity_range['pricing_method'] = 'price';
-				        			break;
-				        		case 'fixed__price':
-				        			$quantity_range['pricing_method'] = 'fixed';
-				        			break;
-				        		
-				        		default:
-				        			# code...
-				        			break;
-				        	}
-							$table_data[] = array(
-				        		'min' => $quantity_range['from'],
-				        		'max' => $quantity_range['to'],
-				        		'type' => $quantity_range['pricing_method'],
-				        		'value' => $quantity_range['pricing_value'],
-				        	);
-
-				        }
-					}else{
-						if (isset($_rule['pricing_method']) && isset($_rule['pricing_value'])){
-							$table_data[] = array(
-					        	'min' => 1,
-					        	'max' => '',
-					       		'type' => $_rule['pricing_method'],
-					       		'value' => $_rule['pricing_value'],
-					       	);	
-						}elseif (isset($_rule['group_pricing_method']) && isset($_rule['group_pricing_value'])){
-							$table_data[] = array(
-					        	'min' => 1,
-					        	'max' => '',
-					       		'type' => $_rule['group_pricing_method'],
-					       		'value' => $_rule['group_pricing_value'],
-					       	);	
+				if ( ! $price['is_multiprice'] ){
+					foreach ($all_rules as $single) {
+						$_product = $single['product'];
+						$_rule = $single['rule'];
+						if (!$_rule){
+							continue;
 						}
+		
+						$original_price = $_product->get_price();
+						if (isset($_rule['quantity_ranges'])){
+							$quantity_ranges = $_rule['quantity_ranges'];
+							if (RP_WCDPD_Settings::get('promo_volume_pricing_table_missing_ranges') === 'display') {
+					            $quantity_ranges = $this->add_missing_ranges($quantity_ranges, $_product);
+					        }
+
+					        foreach ($quantity_ranges as $quantity_range) {
+
+					        	switch ($quantity_range['pricing_method']) {
+					        		case 'discount__percentage':
+					        			$quantity_range['pricing_method'] = 'percentage';
+					        			break;
+					        		case 'discount__amount':
+					        			$quantity_range['pricing_method'] = 'price';
+					        			break;
+					        		case 'fixed__price':
+					        			$quantity_range['pricing_method'] = 'fixed';
+					        			break;
+					        		
+					        		default:
+					        			# code...
+					        			break;
+					        	}
+								$table_data[] = array(
+					        		'min' => $quantity_range['from'],
+					        		'max' => $quantity_range['to'],
+					        		'type' => $quantity_range['pricing_method'],
+					        		'value' => $quantity_range['pricing_value'],
+					        		'conditions' => isset($_rule['conditions'])?$_rule['conditions']:array(),
+					        	);
+
+					        }
+						}else{
+							if (isset($_rule['pricing_method']) && isset($_rule['pricing_value'])){
+								$table_data[] = array(
+						        	'min' => 1,
+						        	'max' => '',
+						       		'type' => $_rule['pricing_method'],
+						       		'value' => $_rule['pricing_value'],
+						       		'conditions' => isset($_rule['conditions'])?$_rule['conditions']:array(),
+						       	);	
+							}elseif (isset($_rule['group_pricing_method']) && isset($_rule['group_pricing_value'])){
+								$table_data[] = array(
+						        	'min' => 1,
+						        	'max' => '',
+						       		'type' => $_rule['group_pricing_method'],
+						       		'value' => $_rule['group_pricing_value'],
+						       		'conditions' => isset($_rule['conditions'])?$_rule['conditions']:array(),
+						       	);	
+							}
+							
+						}					
 						
-					}					
-					
+					}
+				}else{
+					foreach ($all_rules as $vid => $vidsingle) {
+
+
+						foreach ($vidsingle as $single) {
+
+							$_product = $single['product'];
+							$_rule = $single['rule'];
+							if (!$_rule){
+								continue;
+							}
+			
+							$original_price = $_product->get_price();
+							if (isset($_rule['quantity_ranges'])){
+								$quantity_ranges = $_rule['quantity_ranges'];
+								if (RP_WCDPD_Settings::get('promo_volume_pricing_table_missing_ranges') === 'display') {
+						            $quantity_ranges = $this->add_missing_ranges($quantity_ranges, $_product);
+						        }
+
+						        foreach ($quantity_ranges as $quantity_range) {
+
+						        	switch ($quantity_range['pricing_method']) {
+						        		case 'discount__percentage':
+						        			$quantity_range['pricing_method'] = 'percentage';
+						        			break;
+						        		case 'discount__amount':
+						        			$quantity_range['pricing_method'] = 'price';
+						        			break;
+						        		case 'fixed__price':
+						        			$quantity_range['pricing_method'] = 'fixed';
+						        			break;
+						        		
+						        		default:
+						        			# code...
+						        			break;
+						        	}
+									$table_data[ $vid ][] = array(
+						        		'min' => $quantity_range['from'],
+						        		'max' => $quantity_range['to'],
+						        		'type' => $quantity_range['pricing_method'],
+						        		'value' => $quantity_range['pricing_value'],
+						        		'conditions' => isset($_rule['conditions'])?$_rule['conditions']:array(),
+						        	);
+
+						        }
+							}else{
+								if (isset($_rule['pricing_method']) && isset($_rule['pricing_value'])){
+									$table_data[ $vid ][] = array(
+							        	'min' => 1,
+							        	'max' => '',
+							       		'type' => $_rule['pricing_method'],
+							       		'value' => $_rule['pricing_value'],
+							       		'conditions' => isset($_rule['conditions'])?$_rule['conditions']:array(),
+							       	);	
+								}elseif (isset($_rule['group_pricing_method']) && isset($_rule['group_pricing_value'])){
+									$table_data[ $vid ][] = array(
+							        	'min' => 1,
+							        	'max' => '',
+							       		'type' => $_rule['group_pricing_method'],
+							       		'value' => $_rule['group_pricing_value'],
+							       		'conditions' => isset($_rule['conditions'])?$_rule['conditions']:array(),
+							       	);	
+								}
+								
+							}	
+						}				
+						
+					}
 				}
 
 				$price['rules'] = $table_data;

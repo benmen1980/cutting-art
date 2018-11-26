@@ -157,6 +157,14 @@ final class TM_EPO_SETTINGS_base {
 				'type'    => 'checkbox',
 			),
 			array(
+				'title'   => __( 'Total price as Unit Price', 'woocommerce-tm-extra-product-options' ),
+				'desc'    => __( 'Check to make the total price not being multiplied by the product quantity', 'woocommerce-tm-extra-product-options' ),
+				'id'      => 'tm_epo_total_price_as_unit_price',
+				'class'   => 'tcftb',
+				'default' => 'no',
+				'type'    => 'checkbox',
+			),			
+			array(
 				'title'   => __( 'Strip html from emails', 'woocommerce-tm-extra-product-options' ),
 				'desc'    => __( 'Check to strip the html tags from emails', 'woocommerce-tm-extra-product-options' ),
 				'id'      => 'tm_epo_strip_html_from_emails',
@@ -897,6 +905,14 @@ final class TM_EPO_SETTINGS_base {
 				'type'    => 'checkbox',
 			),
 			array(
+				'title'   => __( 'Disable sending the options upon saving the order', 'woocommerce-tm-extra-product-options' ),
+				'desc'    => '<span>' . __( 'Enable this if you are getiing a 500 error when trying to complete the order in the checkout.', 'woocommerce-tm-extra-product-options' ) . '</span>',
+				'id'      => 'tm_epo_disable_sending_options_in_order',
+				'default' => 'yes',
+				'class'   => 'tcglobal8',
+				'type'    => 'checkbox',
+			),
+			array(
 				'title'   => __( 'Attach upload files to emails', 'woocommerce-tm-extra-product-options' ),
 				'desc'    => '<span>' . __( 'Check to Attach upload files to emails.', 'woocommerce-tm-extra-product-options' ) . '</span>',
 				'id'      => 'tm_epo_global_attach_uploaded_to_emails',
@@ -1175,7 +1191,7 @@ final class TM_EPO_SETTINGS_base {
 
 	public function _get_setting_license( $setting, $label ) {
 		$is_active = TM_EPO_LICENSE()->get_license();
-		$is_hidden = $is_active || defined('TC_CLIENT_MODE');
+		$is_hidden = defined('TC_CLIENT_MODE');
 		$_license_settings = (!defined( 'TM_DISABLE_LICENSE' )) ?
 			array(
 				array(
@@ -1227,6 +1243,14 @@ final class TM_EPO_SETTINGS_base {
 					'class'    => ($is_hidden?'hidden':''), 
 					'type'    => ($is_hidden?'password':'text'),
 				),
+				array(
+					'title'   => __( 'Consent', 'woocommerce-tm-extra-product-options' ),
+					'desc'    => __( 'I agree that the license data will be transmitted to the license server.', 'woocommerce-tm-extra-product-options' ),
+					'id'      => 'tm_epo_consent_for_transmit',
+					'class'    => ($is_hidden?'hidden':''), 
+					'default' => 'no',
+					'type'    => 'checkbox',
+				),				
 				array( 'type' => 'tm_sectionend', 'id' => 'epo_page_options' ),
 			) : array();
 

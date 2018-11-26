@@ -19,6 +19,19 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	public function __construct() {
 
 		add_action( 'wc_epo_add_compatibility', array( $this, 'add_compatibility' ) );
+		add_action( 'plugins_loaded', array( $this, 'plugins_loaded' ), 1 );
+
+	}
+
+	public function plugins_loaded() {
+
+		$this->is_aelia_currency_switcher = class_exists( 'WC_Aelia_CurrencySwitcher' );
+		$this->is_woocs = class_exists( 'WOOCS' );
+		$this->is_all_in_one_cc = class_exists( 'WooCommerce_All_in_One_Currency_Converter_Main' );
+
+		global $woocommerce_wpml;
+		$this->is_wpml = TM_EPO_WPML()->is_active();
+		$this->is_wpml_multi_currency = $this->is_wpml && $woocommerce_wpml && property_exists( $woocommerce_wpml, 'multi_currency' ) && $woocommerce_wpml->multi_currency;
 
 	}
 
@@ -29,13 +42,15 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	public function add_compatibility() {
 		/** WooCommerce Currency Switcher support (realmag777) **/
 
+		add_filter( 'wc_epo_convert_to_currency', array( $this, 'wc_epo_convert_to_currency' ), 10, 3 );
+
 		add_filter( 'wc_epo_product_price', array( $this, 'wc_epo_product_price' ), 10, 3 );
 		add_filter( 'wc_epo_product_price_correction', array( $this, 'wc_epo_product_price_correction' ), 10, 2 );
 		add_filter( 'wc_epo_option_price_correction', array( $this, 'wc_epo_option_price_correction' ), 10, 3 );
 
 		add_filter( 'woocs_fixed_raw_woocommerce_price', array( $this, 'woocs_fixed_raw_woocommerce_price' ), 10, 3 );
 
-		add_filter( 'wc_epo_get_current_currency_price', array( $this, 'wc_epo_get_current_currency_price' ), 10, 5 );
+		add_filter( 'wc_epo_get_current_currency_price', array( $this, 'wc_epo_get_current_currency_price' ), 10, 7 );
 		add_filter( 'wc_epo_remove_current_currency_price', array( $this, 'wc_epo_remove_current_currency_price' ), 10, 8 );
 
 		add_filter( 'wc_epo_get_currency_price', array( $this, 'tm_wc_epo_get_currency_price' ), 10, 8 );
@@ -52,7 +67,28 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 
 		add_action( 'wc_epo_currency_actions', array( $this, 'wc_epo_currency_actions' ), 10, 3 );
 
+		add_filter( 'wc_epo_script_args', array( $this, 'wc_epo_script_args' ), 10, 1 );
 
+
+
+	}
+
+	public function wc_epo_script_args( $args ) {
+
+		if ( $this->is_woocs && isset( $args['product_id'] ) ) {
+			$customer_price_format = get_option( 'woocs_customer_price_format', '' );
+
+			if ( !empty( $customer_price_format ) ) {
+				global $WOOCS;
+				$args["customer_price_format"] = $customer_price_format;
+				$args["current_currency"] = $WOOCS->current_currency;
+				$args["customer_price_format_wrap_start"] = '<span class="woocs_price_code" data-product-id="' . $args['product_id'] . '">';
+				$args["customer_price_format_wrap_end"] = '</span>';
+			}
+		}
+
+		return $args;
+		
 	}
 
 	public function wc_epo_currency_actions( $price1, $price2, $cart_item ) {
@@ -124,7 +160,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	}
 
 	public function wc_epo_cart_set_price( $cart_item, $price ) {
-		if ( class_exists( 'WC_Aelia_CurrencySwitcher' ) ) {
+		if ( $this->is_aelia_currency_switcher ) {
 			if ( !property_exists( 'WC_Aelia_CurrencySwitcher', 'version' ) || (property_exists( 'WC_Aelia_CurrencySwitcher', 'version' ) && version_compare( WC_Aelia_CurrencySwitcher::$version, '4.4.7', '<' )) ) {
 				$cart_item['data']->set_price( $price );
 			}
@@ -136,7 +172,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	/** Add additional info in price html **/
 	public function wc_epo_get_price_html( $price_html, $product ) {
 
-		if ( class_exists( 'WOOCS' ) ) {
+		if ( $this->is_woocs ) {
 			global $WOOCS;
 
 			$currencies = is_callable( array( $WOOCS, 'get_currencies' ) )?$WOOCS->get_currencies():array();
@@ -207,7 +243,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	private function _get_woos_price_calculation() {
 
 		$oldway = FALSE;
-		if ( class_exists( 'WOOCS' ) ) {
+		if ( $this->is_woocs ) {
 			global $WOOCS;
 			if ( property_exists( $WOOCS, 'the_plugin_version' ) || defined( 'WOOCS_VERSION' ) ) {
 				$vi = property_exists( $WOOCS, 'the_plugin_version' ) ? $WOOCS->the_plugin_version : (defined( 'WOOCS_VERSION' ) ? WOOCS_VERSION : FALSE);
@@ -234,7 +270,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	 * This filter is currently only used for product prices.
 	 */
 	public function wc_epo_product_price( $price = "", $type = "", $is_meta_value = TRUE, $currency = FALSE ) {
-		if ( class_exists( 'WOOCS' ) ) {
+		if ( $this->is_woocs ) {
 			global $WOOCS;
 			if ( property_exists( $WOOCS, 'the_plugin_version' ) || defined( 'WOOCS_VERSION' ) ) {
 				if ( !$is_meta_value && !$this->_get_woos_price_calculation() ) {
@@ -255,7 +291,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 					}
 				}
 			}
-		} elseif ( class_exists( 'WooCommerce_All_in_One_Currency_Converter_Main' ) ) {
+		} elseif ( $this->is_all_in_one_cc ) {
 			global $woocommerce_all_in_one_currency_converter;
 			$user_currency = $woocommerce_all_in_one_currency_converter->settings->session_currency;
 			$currency_data = $woocommerce_all_in_one_currency_converter->settings->get_currency_data();
@@ -279,7 +315,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	 * MUST BE USED ONLY WHEN IT IS KNOWN THAT THE PRICE IS DIFFERENT !
 	 */
 	public function tm_epo_price_per_currency_diff( $price = 0, $to_currency = NULL ) {
-		if ( class_exists( 'WOOCS' ) && !$this->_get_woos_price_calculation() ) {
+		if ( $this->is_woocs && ! $this->_get_woos_price_calculation() ) {
 			global $WOOCS;
 			if ( $to_currency === NULL || ($to_currency !== NULL && $WOOCS->default_currency == $to_currency) ) {
 				$price = $this->wc_epo_remove_current_currency_price( $price );
@@ -290,7 +326,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	}
 
 	public function wc_epo_product_price_correction( $price, $cart_item ) {
-		if ( class_exists( 'WOOCS' ) || class_exists( 'WooCommerce_All_in_One_Currency_Converter_Main' ) ) {
+		if ( $this->is_woocs || $this->is_all_in_one_cc ) {
 			global $WOOCS;
 			
 			if ( $WOOCS->is_multiple_allowed ) {
@@ -323,7 +359,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	}
 
 	public function wc_epo_option_price_correction( $price ) {
-		if ( class_exists( 'WOOCS' ) || class_exists( 'WooCommerce_All_in_One_Currency_Converter_Main' ) ) {
+		if ( $this->is_woocs || $this->is_all_in_one_cc ) {
 			return apply_filters( 'wc_epo_remove_current_currency_price', $price );
 		}
 
@@ -331,7 +367,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	}
 
 	/** WooCommerce Currency Switcher support (realmag777) **/
-	public function wc_epo_get_current_currency_price( $price = "", $type = "", $is_meta_value = TRUE, $currencies = NULL, $currency = false ) {
+	public function wc_epo_get_current_currency_price( $price = "", $type = "", $is_meta_value = TRUE, $currencies = NULL, $currency = false, $product_price = false, $tc_added_in_currency = false ) {
 		global $woocommerce_wpml;
 		if ( is_array( $type ) ) {
 			$type = "";
@@ -339,7 +375,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 		// Check if the price should be processed only once
 		if ( in_array( (string) $type, array( '', 'char', 'step', 'intervalstep', 'charnofirst', 'charnospaces', 'charnon', 'charnonnospaces', 'fee', 'stepfee', 'subscriptionfee' ) ) ) {// 'percentcurrenttotal',
 
-			if ( TM_EPO_WPML()->is_active() && $woocommerce_wpml && property_exists( $woocommerce_wpml, 'multi_currency' ) && $woocommerce_wpml->multi_currency ) {
+			if ( $this->is_wpml_multi_currency ) {
 
 				if ( is_callable( array( $woocommerce_wpml->multi_currency, 'convert_price_amount' ) ) ) {
 					$price = $woocommerce_wpml->multi_currency->convert_price_amount( $price, $currency );
@@ -347,7 +383,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 					$price = $woocommerce_wpml->multi_currency->prices->convert_price_amount( $price, $currency );
 				}
 
-			} elseif ( class_exists( 'WOOCS' ) || class_exists( 'WooCommerce_All_in_One_Currency_Converter_Main' ) ) {
+			} elseif ( $this->is_woocs || $this->is_all_in_one_cc ) {
 				global $WOOCS;
 				if ( is_array( $currencies ) && isset( $currencies[ $WOOCS->current_currency ] ) ) {
 					$price = $currencies[ $WOOCS->current_currency ];
@@ -359,6 +395,35 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 
 				//$price = $this->get_price_in_currency( $price, NULL, $currency, $currencies, $type );
 				$price = $this->get_price_in_currency( $price, $currency, NULL, $currencies, $type );
+
+			}
+
+		}elseif( $product_price!==FALSE && $tc_added_in_currency!== false && (string) $type == 'percent' ){
+
+			if ( $this->is_wpml_multi_currency ) {
+
+				if ( is_callable( array( $woocommerce_wpml->multi_currency, 'convert_price_amount' ) ) ) {
+					$product_price = $woocommerce_wpml->multi_currency->convert_price_amount( $product_price, $tc_added_in_currency );
+				} elseif ( property_exists( $woocommerce_wpml->multi_currency, 'prices' ) && is_callable( array( $woocommerce_wpml->multi_currency->prices, 'convert_price_amount' ) ) ) {
+					$product_price = $woocommerce_wpml->multi_currency->prices->convert_price_amount( $product_price, $tc_added_in_currency );
+				}
+
+				$price = $product_price * ($price/100);
+
+			} elseif ( $this->is_woocs || $this->is_all_in_one_cc ) {
+				global $WOOCS;
+				if ( is_array( $currencies ) && isset( $currencies[ $WOOCS->current_currency ] ) ) {
+					$product_price = $currencies[ $WOOCS->current_currency ];
+				} else {
+					$product_price = $this->wc_epo_product_price( $product_price, "", $is_meta_value, $tc_added_in_currency );
+				}
+				$price = $product_price * ($price/100);
+
+			} else {
+
+				//$price = $this->get_price_in_currency( $price, NULL, $currency, $currencies, $type );
+				$product_price = $this->get_price_in_currency( $product_price, $tc_added_in_currency, NULL, $currencies, "" );
+				$price = $product_price * ($price/100);
 
 			}
 
@@ -377,12 +442,11 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 			return $price;
 		}
 
-		global $woocommerce_wpml;
-		if ( TM_EPO_WPML()->is_active() && $woocommerce_wpml && property_exists( $woocommerce_wpml, 'multi_currency' ) && $woocommerce_wpml->multi_currency ) {
+		if ( $this->is_wpml_multi_currency ) {
 			//todo:doesn't work at the moment
 			$price = apply_filters( 'wcml_raw_price_amount', $price );
 
-		} elseif ( class_exists( 'WOOCS' ) || class_exists( 'WooCommerce_All_in_One_Currency_Converter_Main' ) ) {
+		} elseif ( $this->is_woocs || $this->is_all_in_one_cc ) {
 
 			$price = $this->wc_epo_product_price( $price, $price_type, $is_meta_value, $currency );
 
@@ -398,15 +462,15 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 
 	/** WooCommerce Currency Switcher support (realmag777) **/
 	public function wc_epo_remove_current_currency_price( $price = "", $type = "", $to_currency=NULL, $from_currency=NULL, $currencies = NULL, $key = NULL, $attribute = NULL) {
-		global $woocommerce_wpml;
-		if ( class_exists( 'WOOCS' ) ) {
+		
+		if ( $this->is_woocs ) {
 			global $WOOCS;
 			$currencies = is_callable( array( $WOOCS, 'get_currencies' ) )?$WOOCS->get_currencies():array();
 			$current_currency = $WOOCS->current_currency;
 			if ( !empty( $currencies[ $current_currency ]['rate'] ) ) {
 				$price = (double) $price / $currencies[ $current_currency ]['rate'];
 			}
-		} elseif ( class_exists( 'WooCommerce_All_in_One_Currency_Converter_Main' ) ) {
+		} elseif ( $this->is_all_in_one_cc ) {
 			global $woocommerce_all_in_one_currency_converter;
 			$user_currency = $woocommerce_all_in_one_currency_converter->settings->session_currency;
 			$currency_data = $woocommerce_all_in_one_currency_converter->settings->get_currency_data();
@@ -420,7 +484,8 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 			if ( isset( $currency_data[ $current_currency ] ) && !empty( $currency_data[ $current_currency ]['rate'] ) ) {
 				$price = (double) $price / (double) $currency_data[ $current_currency ]['rate'];
 			}
-		} elseif ( TM_EPO_WPML()->is_active() && $woocommerce_wpml && property_exists( $woocommerce_wpml, 'multi_currency' ) && $woocommerce_wpml->multi_currency ) {
+		} elseif ( $this->is_wpml_multi_currency ) {
+			global $woocommerce_wpml;
 			if ( is_callable( array( $woocommerce_wpml->multi_currency, 'unconvert_price_amount' ) ) ) {
 				$price = $woocommerce_wpml->multi_currency->unconvert_price_amount( $price );
 			} elseif ( property_exists( $woocommerce_wpml->multi_currency, 'prices' ) && is_callable( array( $woocommerce_wpml->multi_currency->prices, 'unconvert_price_amount' ) ) ) {
@@ -434,6 +499,41 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 
 		return $price;
 	}
+
+	public function wc_epo_convert_to_currency( $price = "", $from_currency = FALSE, $to_currency = FALSE ) {
+
+		if ( ! $from_currency || ! $to_currency || $from_currency == $to_currency ) {
+			return $price;
+		}
+
+		if ( $this->is_wpml_multi_currency ) {
+			// todo: find a way to get correct price for any $from_currency as 
+			// currently it defaults to get_option( 'woocommerce_currency' )
+			global $woocommerce_wpml;
+			if ( is_callable( array( $woocommerce_wpml->multi_currency, 'convert_price_amount' ) ) ) {
+				$price = $woocommerce_wpml->multi_currency->convert_price_amount( $price, $to_currency );
+			} elseif ( property_exists( $woocommerce_wpml->multi_currency, 'prices' ) && is_callable( array( $woocommerce_wpml->multi_currency->prices, 'convert_price_amount' ) ) ) {
+				$price = $woocommerce_wpml->multi_currency->prices->convert_price_amount( $price, $to_currency );
+			}
+
+		} elseif ( $this->is_woocs ) {
+			global $WOOCS;
+			$currencies = is_callable( array( $WOOCS, 'get_currencies' ) )?$WOOCS->get_currencies():array();
+			$current_currency = $from_currency;
+			if ( !empty( $currencies[ $to_currency ]['rate'] ) && !empty( $currencies[ $from_currency ]['rate'] ) ) {
+				$price = (double) $price * ( $currencies[ $to_currency ]['rate'] / $currencies[ $from_currency ]['rate'] );
+			}//var_dump_pre('=========='.$price);
+
+		} else {
+			// todo: if needed extend this as the whole method is only used for fixed conversions 
+			$price = $this->get_price_in_currency( $price, $to_currency, $from_currency );
+
+		}
+
+		return $price;
+
+	}
+
 
 	/**
 	 * Basic integration with WooCommerce Currency Switcher, developed by Aelia
@@ -481,7 +581,7 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 	}
 
 	public function wc_epo_cs_convert( $amount, $from_currency, $to_currency, $include_markup = TRUE ) {
-		if ( class_exists( 'WC_Aelia_CurrencySwitcher' ) ) {
+		if ( $this->is_aelia_currency_switcher ) {
 			return $amount;
 		}
 		// No need to try converting an amount that is not numeric. This can happen
@@ -528,12 +628,13 @@ final class TM_EPO_COMPATIBILITY_woocommerce_currency_switcher {
 
 	/** WooCommerce Currency Switcher support (realmag777) **/
 	public function tm_epo_price_add_on_cart( $price = "", $price_type = "" ) {
-		//global $woocommerce_wpml;
-		if ( !class_exists( 'WooCommerce_All_in_One_Currency_Converter_Main' ) ) {
+
+		if ( ! $this->is_all_in_one_cc ) {
 			$price = apply_filters( 'wc_epo_get_current_currency_price', $price, $price_type );
 		}
 
 		return $price;
+
 	}
 
 }

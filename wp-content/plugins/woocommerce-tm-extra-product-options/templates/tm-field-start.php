@@ -17,8 +17,12 @@ if ( !defined( 'TM_EPO_PLUGIN_SECURITY' ) ) {
 	die();
 }
 ?>
-<li id="<?php echo $field_id; ?>" class="cpf_hide_element tm-extra-product-options-field<?php if ( $required ) {
+<li id="<?php echo $field_id; ?>" class="cpf_hide_element tm-extra-product-options-field<?php 
+if ( $required ) {
 	echo ' tm-epo-has-required';
+} 
+if (isset($li_class)){
+	echo' '.$li_class;
 } ?>">
     <span class="tm-epo-field-label"><?php echo $title; ?><?php if ( $required ) { ?><span
                 class="tm-required">*</span><?php } ?></span>

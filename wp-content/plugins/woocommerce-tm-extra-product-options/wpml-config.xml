@@ -26,6 +26,7 @@
         <key name="tm_epo_select_file_text" />
         <key name="tm_epo_dpd_prefix" />
         <key name="tm_epo_dpd_suffix" />
+        <key name="tm_epo_global_required_indicator" />
     </admin-texts>   
     <custom-types>
         <custom-type translate="0">tm_global_cp</custom-type>

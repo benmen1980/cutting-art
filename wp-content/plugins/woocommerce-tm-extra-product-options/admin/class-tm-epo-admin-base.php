@@ -87,6 +87,7 @@ final class TM_EPO_Admin_base {
 		if ( isset( $_POST ) && isset( $_POST['order_status'] ) && $_POST['order_status'] == 'wc-refunded' ) {
 			return;
 		}
+		$legacy_order = 0;
 		if ( is_array( $items ) && isset( $items['tm_epo'] ) ) {
 			$order = TM_EPO_HELPER()->tm_get_order_object();
 			$order_currency = is_callable( array( $order, 'get_currency' ) ) ? $order->get_currency() : $order->get_order_currency();
@@ -122,8 +123,9 @@ final class TM_EPO_Admin_base {
 					foreach ( $epos as $key => $epo ) {
 
 						if ( isset( $items['tm_item_id'] ) && isset( $items['tm_key'] ) && $items['tm_key'] == $key && $items['tm_item_id'] == $item_id ) {
-							$line_total = $line_total - $saved_epos[ $key ]['price'];
-							$line_subtotal = $line_subtotal - $saved_epos[ $key ]['price'];
+							$option_price_before = $this->order_price_exluding_tax( $saved_epos[ $key ]['price'], $legacy_order, $prices_include_tax, $order, $order_taxes, $order_items, $item_id );
+							$line_total = $line_total - $option_price_before;
+							$line_subtotal = $line_subtotal - $option_price_before;
 							unset( $saved_epos[ $key ] );
 							$do_update = TRUE;
 						} else {
@@ -1010,7 +1012,7 @@ final class TM_EPO_Admin_base {
 			),
 		);
 		$tmepos = get_posts( $args );
-		if ( count( $tmepos ) >= count( $_attributes ) ) {
+		if ( is_array( $tmepos) && is_array( $_attributes ) && count( $tmepos ) >= count( $_attributes ) ) {
 			die( 'max' );
 		}
 

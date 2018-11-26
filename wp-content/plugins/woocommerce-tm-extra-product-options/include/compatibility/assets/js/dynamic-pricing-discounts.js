@@ -8,7 +8,14 @@
             epo_object = o.data.epo_object;
 
         var pt = epo_object.main_product.find('.rp_wcdpd_pricing_table').find('td > .amount'),
+            vpt = epo_object.main_product.find('.rp_wcdpd_pricing_table_variation_container'),
             enable_pricing_table = totals.attr( 'data-tm-epo-dpd-enable-pricing-table' );
+
+        if ( vpt.length>0 ){
+
+            pt = vpt.find('.rp_wcdpd_pricing_table_variation:visible').find('.rp_wcdpd_pricing_table').find('td > .amount')
+
+        }
         if (enable_pricing_table !== "yes" || !pt.length){
             return;
         }
@@ -30,7 +37,8 @@
             if ( $cart.find( 'input.variation_id' ).length > 0 ) {
                 variation_id_selector = 'input.variation_id';
             }
-            var current_variation = $cart.find( variation_id_selector ).val();
+            var current_variation = $cart.find( variation_id_selector ).val(),
+                cv = current_variation;
 
             if ( ! current_variation ) {
                 current_variation = 0;
@@ -43,7 +51,7 @@
 
                 $( rules[ current_variation ] ).each( function ( id, rule ) {
                 
-                    var discount = tm_get_discount_obj(rules, current_variation, object.qty),
+                    var discount = tm_get_discount_obj(totals, rules, current_variation, cv, object.qty),
                         dprice = ot,
                         value = discount[0],
                         type = discount[1],
@@ -116,6 +124,7 @@
                             break;
 
                     }
+
                     var table_price = accounting.formatMoney( new_product_price + price, {
                         symbol: tm_epo_js.currency_format_symbol,
                         decimal: local_decimal_separator,
@@ -123,7 +132,6 @@
                         precision: tm_epo_js.currency_format_num_decimals,
                         format: tm_epo_js.currency_format
                     } );
-
                     $(pt[id]).html(table_price);
 
                 } );
@@ -150,7 +158,8 @@
             }
             var qty_element = totals.data( 'qty_element' ),
                 qty = parseFloat( qty_element.val() ),
-                current_variation = $cart.find( variation_id_selector ).val();
+                current_variation = $cart.find( variation_id_selector ).val(),
+                cv = current_variation;
 
             if ( ! current_variation ) {
                 current_variation = 0;
@@ -164,7 +173,7 @@
                 if ( ! rules[ current_variation ] ) {
                     current_variation = 0;
                 }
-                price = tm_get_discount_obj(rules, current_variation, qty);
+                price = tm_get_discount_obj(totals, rules, current_variation, cv, qty);
             }
 
         }
@@ -173,17 +182,116 @@
 
     }
 
-    function tm_get_discount_obj(rules, current_variation, qty, force){
+
+    function getChosenAttributes( $form ) {
+        var $attributeFields = $form.find( '.variations select' );
+        var data   = {};
+        var count  = 0;
+        var chosen = 0;
+
+        $attributeFields.each( function() {
+            var attribute_name = $( this ).data( 'attribute_name' ) || $( this ).attr( 'name' );
+            var value          = $( this ).val() || '';
+
+            if ( value.length > 0 ) {
+                chosen ++;
+            }
+
+            count ++;
+            data[ attribute_name ] = value;
+        });
+
+        return {
+            'count'      : count,
+            'chosenCount': chosen,
+            'data'       : data
+        };
+    };
+
+    function tm_get_discount_obj($totals, rules, current_variation, cv, qty, force){
         var discount = [ false, false ];
         $( rules[ current_variation ] ).each( function ( id, rule ) {
             var min = parseFloat( rule[ 'min' ] ),
                 max = parseFloat( rule[ 'max' ] ),
                 type = rule[ 'type' ],
-                value = parseFloat( rule[ 'value' ] );
+                value = parseFloat( rule[ 'value' ] ),
+                found = true;
+ 
+            if ( rule['conditions'] ){
+                $(rule['conditions']).each( function ( cid, condition ) {
+                    if(condition.type == "product__attributes"){
+                        var att_ids = $totals.data('tm-epo-dpd-attributes-to-id');                        
+                        var chosen_atts = getChosenAttributes($totals.data( 'tm_for_cart' ));
+                        var c=[];
+                        for (var x in chosen_atts.data ) {
+                            if ( chosen_atts.data[x] ){
+                                c[c.length] = att_ids[x][chosen_atts.data[x]].toString();    
+                            }                            
+                        }
+                        var product_attributes = condition.product_attributes;
+                        
+                        if (condition.method_option == "at_least_one"){
 
+                            for (var x in product_attributes ) {
+                                if ( $.inArray( product_attributes[x].toString(), c ) !== -1 ){
+                                    found = true;
+                                    break;
+                                }else{
+                                    found = false;
+                                }  //console.log(product_attributes[x]);                            
+                            } 
+
+                        }else if (condition.method_option == "all"){
+
+                            for (var x in product_attributes ) {
+                                if ( $.inArray( product_attributes[x].toString(), c ) !== -1 ){
+                                    found = true;
+                                }else{
+                                    found = false;
+                                }                                
+                            }
+
+                        }else if (condition.method_option == "only"){
+
+                            // todo
+
+                        }else if (condition.method_option == "none"){
+
+                            for (var x in product_attributes ) {
+                                if ( $.inArray( product_attributes[x].toString(), c ) == -1 ){
+                                    found = true;
+                                }else{
+                                    found = false;
+                                }                                
+                            }
+
+                        }
+                    }
+                    if(condition.type == "product__variation"){
+                        if (condition.method_option == "in_list"){
+                            if ( $.inArray( cv.toString(), condition.product_variations ) !== -1 ){
+                                found = true;
+                            }else{
+                                found = false;
+                            }                                               
+                        }else{
+                            if ( $.inArray( cv.toString(), condition.product_variations ) == -1 ){
+                                found = true;
+                            }else{
+                                found = false;
+                            }
+                        }
+                    }
+                });
+            }
+            if ( ! found  ){
+                return true;
+            }
             if ( force || (isNaN(max) && min <= qty) || (!isNaN(max)  && min <= qty && qty <= max) ) {                
                 discount = [ value, type ];
-                return false;
+                // we disable the next line to take into account the "All applicable rules" functionality
+                // todo: find a better way to do this as it produces more loops
+                //return false;
 
             }
         } );
@@ -209,7 +317,8 @@
             var qty_element = totals.data( 'qty_element' ),
                 qty = parseFloat( qty_element.val() ),
                 variation_id_selector = totals.data( 'variation_id_selector' ),
-                current_variation = parseFloat( variation_id_selector.val() );
+                current_variation = parseFloat( variation_id_selector.val() ),
+                cv = current_variation;
 
             if ( variation_id_selector.length > 0 && (! current_variation || current_variation === 0) ) {
                 return false;
@@ -230,7 +339,7 @@
                     current_variation = 0;
                 }
 
-                var discount = tm_get_discount_obj(rules, current_variation, qty),
+                var discount = tm_get_discount_obj(totals, rules, current_variation, cv, qty),
                     value = discount[0],
                     type = discount[1],
                     _dc = parseInt( tm_epo_js.currency_format_num_decimals );
@@ -295,7 +404,8 @@
             }
             var qty_element = totals.data( 'qty_element' ),
                 qty = parseFloat( qty_element.val() ),
-                current_variation = $cart.find( variation_id_selector ).val();
+                current_variation = $cart.find( variation_id_selector ).val(),
+                cv = current_variation;
 
             if ( ! current_variation ) {
                 current_variation = 0;
@@ -309,7 +419,7 @@
                 if ( ! rules[ current_variation ] ) {
                     current_variation = 0;
                 }
-                var discount = tm_get_discount_obj(rules, current_variation, qty, force),
+                var discount = tm_get_discount_obj(totals, rules, current_variation, cv, qty, force),
                     value = discount[0],
                     type = discount[1];
                 if ( price === undefined ) {
@@ -413,7 +523,8 @@
                 }
                 var qty_element = $totals_holder.data( 'qty_element' ),
                     qty = parseFloat( qty_element.val() ),
-                    current_variation = $cart.find( variation_id_selector ).val();
+                    current_variation = $cart.find( variation_id_selector ).val(),
+                    cv = current_variation;
 
                 if ( ! current_variation ) {
                     current_variation = 0;
@@ -423,19 +534,21 @@
                         qty = 1;
                     }
                 }
-                var discount = tm_get_discount_obj(rules, current_variation, qty),
+                var discount = tm_get_discount_obj($totals_holder, rules, current_variation, cv, qty),
                     value = discount[0],
                     type = discount[1],
                     _dc = parseInt( tm_epo_js.currency_format_num_decimals ),
                     original_price = tc_totals_ob.product_total_price_without_options+tc_totals_ob.options_total_price,
                     price = original_price;
 
-                // need to ssuport for Enable discounts on extra options = disable
+                
+
+                // need to suport for Enable discounts on extra options = disable
                 if ( o.totals_holder.attr("data-tm-epo-dpd-price-override")!=="1" ){
                     switch ( type ) {
                         case "percentage":
                         case "discount__percentage":                            
-                            price =  ( Math.ceil( ( price / ( 1 - ( value / 100) ) ) * Math.pow( 10, _dc ) - 0.5 ) * Math.pow( 10, - _dc ))*1;
+                            price =  ( parseFloat( ( price / ( 1 - ( value / 100) ) ) * Math.pow( 10, _dc ) ) * Math.pow( 10, - _dc ))*1;
                             price = tc_round( price, _dc );
                             if ( price < 0 ) {
                                 price = 0;
@@ -445,7 +558,7 @@
                         case "price":
                         case "discount__amount":
                             price = price + value;
-                            price = Math.ceil( price * Math.pow( 10, _dc ) - 0.5 ) * Math.pow( 10, - _dc );
+                            price = parseFloat( price * Math.pow( 10, _dc ) ) * Math.pow( 10, - _dc );
                             price = tc_round( price, _dc );
                             if ( price < 0 ) {
                                 price = 0;
@@ -454,7 +567,9 @@
            
                     }
                 }
-                
+               
+                original_price = tc_round( original_price, _dc );
+                price = tc_round( price, _dc );
                 if (original_price == price){
                     return;
                 }

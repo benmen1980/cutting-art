@@ -124,6 +124,7 @@ final class TM_EPO_ADMIN_CSV {
 			switch ( $type ) {
 				case 'download':
 				case 'export_by_id':
+				case 'export_by_product_id':
 					wp_die( $this->error_loading_string );
 					break;
 
@@ -240,8 +241,12 @@ final class TM_EPO_ADMIN_CSV {
 						$k = $this->remove_utf8_bom( $k );
 						if ( strpos( $k, "multiple_" ) === 0 ) {
 							$v = TM_EPO_HELPER()->array_unserialize( $v );
-							$data[ $k ][] = $v;
-
+							
+							if( TM_EPO_HELPER()->str_endsswith( $k, 'options_default_value' ) && is_array($v)){
+								$data[ $k ][] = $v[0];
+							}else{
+								$data[ $k ][] = $v;
+							}
 						} elseif ( strpos( $k, "variations_options" ) === 0 ) {
 							$v = maybe_unserialize( $v );
 							if ( is_array( $v ) ) {
@@ -411,6 +416,70 @@ final class TM_EPO_ADMIN_CSV {
 			)
 		);
 		die();
+	}
+
+	/**
+	 * Export csv by product id
+	 */
+	public function export_by_product_id( $post_id = 0 ) {
+		$this->check_if_active( "export_by_product_id" );
+
+		//check_ajax_referer( 'tmexport_form_nonce_' . $post_id, 'security' );
+
+		$tm_meta = array();
+		$epos = TM_EPO()->get_product_tm_epos( $post_id );
+
+		if ( is_array( $epos) && isset( $epos['global_ids'] ) && is_array( $epos['global_ids'] ) ){
+
+			foreach ($epos['global_ids'] as $post) {
+
+				$id = $post->ID;
+				$type = $post->post_type;
+
+				$meta = tc_get_post_meta( $id, 'tm_meta', TRUE );
+
+				if ( !empty( $meta )
+					&& is_array( $meta )
+					&& isset( $meta['tmfbuilder'] )
+					&& is_array( $meta['tmfbuilder'] )
+				) {
+
+					$meta = TM_EPO_HELPER()->recreate_element_ids( $meta );
+					$tm_meta = array_merge_recursive($tm_meta, $meta);
+
+				}
+
+			}
+
+		}
+
+		if ( !empty( $tm_meta )
+			&& is_array( $tm_meta )
+			&& isset( $tm_meta['tmfbuilder'] )
+			&& is_array( $tm_meta['tmfbuilder'] )
+		) {
+
+			//$tm_meta = TM_EPO_HELPER()->recreate_element_ids( $tm_meta );
+			$tm_meta = $tm_meta['tmfbuilder'];
+
+			$csv = new tm_convert_array_to_csv();
+			$tm_meta = $csv->convert( $tm_meta );
+
+			$sitename = sanitize_key( get_bloginfo( 'name' ) );
+			if ( !empty( $sitename ) ) {
+				$sitename .= '.';
+			}
+			$filename = $sitename . 'form.' . $post_id . '.' . date( 'Y-m-d-H-i-s' ) . '.csv';
+
+			if ( !isset( $_SESSION ) ) {
+				session_start();
+			}
+
+			$_SESSION[ $filename ] = $tm_meta;
+			$this->download( $filename );
+			
+		}
+
 	}
 
 	/**

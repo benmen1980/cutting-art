@@ -2,6 +2,12 @@
 	"use strict";
 
 	var global_variation_object = false;
+	var template_engine = {
+			'tc_builder_elements': wp.template( 'tc-builder-elements' ),
+			'tc_builder_section': wp.template( 'tc-builder-section' ),
+		};
+
+	template_engine = $.tc_apply_filters( "tc_adjust_admin_template_engine", template_engine );
 
 	$.tmEPOAdmin = {
 
@@ -38,6 +44,10 @@
 								"title": tm_epo_admin.i18n_error_title
 							} );
 							var temp_floatbox = $( "body" ).tm_floatbox( {
+								"closefadeouttime": 0,
+								//"animationBaseClass": "",
+								//"animateIn": "",
+								"animateOut": "",
 								"fps": 1,
 								"ismodal": true,
 								"refresh": "fixed",
@@ -72,6 +82,10 @@
 					} );
 
 					data._to = $( "body" ).tm_floatbox( {
+						"closefadeouttime": 0,
+						//"animationBaseClass": "",
+						//"animateIn": "",
+						"animateOut": "",
 						"fps": 1,
 						"ismodal": true,
 						"refresh": "fixed",
@@ -383,8 +397,7 @@
 			} );
 
 			$( document ).on( "change.cpf", ".tm_select_price_type", function () {
-				var panels_wrap = $( this ).closest( '.builder_element_wrap' ).find(".panels_wrap");console.log(panels_wrap);
-
+				var panels_wrap = $( this ).closest( '.builder_element_wrap' ).find(".panels_wrap");
 				if ( $( this ).val() == "fee" ) {
 					panels_wrap.find( '.multiple_selectbox_options' ).children('option[value="percentcurrenttotal"]').hide();
 					panels_wrap.find( ".multiple_selectbox_options" ).filter( function () {
@@ -462,14 +475,15 @@
 
 			$( document ).on( 'change.cpf', '.tma-variations-section .sections_style', function () {
 				var $this = $( this ), v = $this.val();
-				if ( v == 'collapse' || v == 'accordion' || v == 'collapseclosed' ) {
+				/*if ( v == 'collapse' || v == 'accordion' || v == 'collapseclosed' ) {
 					$( '#temp_for_floatbox_insert .tma-tab-title' ).show();
 					$( '#temp_for_floatbox_insert .tm-tab' ).find( '.builder_hide_for_variation' ).show();
 				} else {
 					$( '#temp_for_floatbox_insert .tma-tab-title' ).hide();
 					$( '#temp_for_floatbox_insert .tm-tab' ).find( '.builder_hide_for_variation' ).hide();
-				}
+				}*/
 				$( '#temp_for_floatbox_insert' ).find( '.builder_hide_for_variations' ).hide();
+				$( '#temp_for_floatbox_insert' ).find( '.builder_hide_for_variation' ).hide();
 			} );
 
 			if ( $().ajaxChosen ) {
@@ -756,7 +770,7 @@
 						}
 						return bw.find( '.bitem_wrapper' )
 							.map( function ( i, e ) {
-								return $( e ).children( '.bitem' ).not( '.pl2' ).length;
+								return $( e ).children( '.bitem' ).not( '.pl2, .element_is_disabled' ).length;
 							} ).get().join( "," );
 					} );
 				},
@@ -769,7 +783,7 @@
 						}
 						return bw.find( '.bitem_wrapper' )
 							.map( function ( i, e ) {
-								return $( e ).children( '.bitem' ).not( '.pl2' ).length;
+								return $( e ).children( '.bitem' ).not( '.pl2, .element_is_disabled' ).length;
 							} ).get().join( "," );
 					} );
 					$.tmEPOAdmin.builder_reorder_multiple();
@@ -800,7 +814,7 @@
 					}
 					return bw.find( '.bitem_wrapper' )
 						.map( function ( i, e ) {
-							return $( e ).children( '.bitem' ).not( '.pl2' ).length;
+							return $( e ).children( '.bitem' ).not( '.pl2, .element_is_disabled' ).length;
 						} ).get().join( "," );
 				} );
 			} else if ( style != "slider" && bw.hasClass( "tm-slider-wizard" ) ) {
@@ -891,14 +905,14 @@
 						variation_element_builder_wrapper.addClass( "tma-nomove tma-variations-wrap" );
 						variation_element_builder_wrapper
 							.find( ".builder_hide_for_variation" ).hide();
-						var _rlogictab = variation_element_builder_wrapper.find( ".tma-tab-title,.tma-tab-logic,.tma-tab-css,.tma-tab-woocommerce" );
+						var _rlogictab = variation_element_builder_wrapper.find( ".tma-tab-logic,.tma-tab-css,.tma-tab-woocommerce" );
 						_rlogictab.hide();
 
 						$.tmEPOAdmin.var_is( "tm-style-variation-added", true );
 
 						variation_element.addClass( "tma-nomove" );
 						variation_element.find( ".tmicon.size,.tmicon.clone,.tmicon.move,.tmicon.plus,.tmicon.minus,.tmicon.delete" ).remove();
-						_rlogictab = variation_element.find( ".tma-tab-title,.tma-tab-logic,.tma-tab-css,.tma-tab-woocommerce" );
+						_rlogictab = variation_element.find( ".tma-tab-logic,.tma-tab-css,.tma-tab-woocommerce" );
 						_rlogictab.remove();
 
 						$( ".builder_add_section" ).removeClass( "inline" );
@@ -1346,14 +1360,16 @@
 			if ( e ) {
 				e.preventDefault();
 			}
-			var _template = $( '.builder_hidden_section' ).data( 'template' );
+			//var _template = $( '.builder_hidden_section' ).data( 'template' );
+			var _template = $.fn.tm_template( template_engine.tc_builder_section, {} );
+
 			if ( _template ) {
-				var _clone = $( _template[ 'html' ] );
+				var _clone = $( _template );
 				if ( _clone ) {
 					_clone.addClass( "w100" );
 					_clone.addClass( "appear" );
 					_clone.find( '.tm-builder-sections-uniqid' ).val( $.tm_uniqid( "", true ) );
-					console.log(ap);
+					
 					if (ap){
 						_clone.appendTo( ".builder_layout" );	
 					}else{
@@ -1393,6 +1409,10 @@
 				"title": tm_epo_admin.i18n_add_element
 			} );
 			var temp_floatbox = $( "body" ).tm_floatbox( {
+				"closefadeouttime": 0,
+				//"animationBaseClass": "",
+				//"animateIn": "",
+				"animateOut": "",
 				"fps": 1,
 				"ismodal": false,
 				"refresh": "fixed",
@@ -1435,6 +1455,10 @@
 				"title": tm_epo_admin.i18n_add_element
 			} );
 			var temp_floatbox = $( "body" ).tm_floatbox( {
+				"closefadeouttime": 0,
+				//"animationBaseClass": "",
+				//"animateIn": "",
+				"animateOut": "",
 				"fps": 1,
 				"ismodal": false,
 				"refresh": "fixed",
@@ -1509,9 +1533,10 @@
 			if ( $.tmEPOAdmin.var_is( "tm-style-variation-added" ) === true ) {
 				return;
 			}
-			var _template = $( '.builder_hidden_section' ).data( 'template' );
+			//var _template = $( '.builder_hidden_section' ).data( 'template' );
+			var _template = $.fn.tm_template( template_engine.tc_builder_section, {} );
 			if ( _template ) {
-				var _clone = $( _template[ 'html' ] );
+				var _clone = $( _template );
 				if ( _clone ) {
 					_clone.addClass( "w100" );
 					_clone.addClass( "appear" );
@@ -1521,7 +1546,7 @@
 					_clone.addClass( "tma-nomove tma-variations-wrap" );
 					_clone.find( ".builder_hide_for_variation" ).hide();
 
-					var _rlogictab = _clone.find( ".tma-tab-title,.tma-tab-logic,.tma-tab-css,.tma-tab-woocommerce" );
+					var _rlogictab = _clone.find( ".tma-tab-logic,.tma-tab-css,.tma-tab-woocommerce" );
 					_rlogictab.hide();
 
 					_clone.prependTo( ".builder_layout" );
@@ -1538,7 +1563,7 @@
 
 					var _clone2 = $.tmEPOAdmin.builder_clone_element( "variations", $( ".builder_layout" ).find( ".builder_wrapper" ).first() );
 					_clone2.find( ".tmicon.size,.tmicon.clone,.tmicon.move,.tmicon.plus,.tmicon.minus,.tmicon.delete" ).remove();
-					_rlogictab = _clone2.find( ".tma-tab-title,.tma-tab-logic,.tma-tab-css,.tma-tab-woocommerce" );
+					_rlogictab = _clone2.find( ".tma-tab-logic,.tma-tab-css,.tma-tab-woocommerce" );
 					_clone2.addClass( "tma-nomove" );
 					_clone2.find( ".builder_hide_for_variation" ).hide();
 					_rlogictab.hide();
@@ -1610,10 +1635,14 @@
 			}
 			return $.tmEPOAdmin.pre_element_logic_init_obj_options;
 		},
-		find_index: function ( is_slider, field ) {
+		find_index: function ( is_slider, field, include, exlcude) {
 			var sib = 0;
 			if ( is_slider ) {
 				sib = field.closest( '.bitem_wrapper' ).prevAll( '.bitem_wrapper' ).find( '.bitem' ).length;
+			}
+			if (include && exlcude){
+				var $lis = field.parent().find(include).not(exlcude);
+		        return sib + $lis.index(field);
 			}
 			return sib + field.index();
 		},
@@ -1703,15 +1732,29 @@
 					options[ section_id ][ 0 ] = '<option data-type="section" data-section="' + section_id + '" value="' + section_id + '">' + _section_name + ' (' + section_id + ')</option>';
 				}
 
-				var fields = section.find( $.tmEPOAdmin.can_take_logic() );
+				var fields = section.find( $.tmEPOAdmin.can_take_logic() ).not('.element_is_disabled');
 				var values = [];
 				var is_slider = section.is( ".tm-slider-wizard" );
+				
+				// filter out disabled fields
+				//var remove_disabled_fields = 0;
+				//fields = fields.filter(function(index){
+				//	return $(this).find('.is_enabled').val() == 1;
+				//});
 
 				// all the fields of current section that can be used as selector in logic
 				fields.each( function ( ii, field ) {
 					var field = $( field ),
 						name = field.find( '[name^="tm_meta\\[tmfbuilder\\]\\["][name$="_header_title\\]\\[\\]"]' ),
-						field_index = $.tmEPOAdmin.find_index( is_slider, field );
+						field_index = $.tmEPOAdmin.find_index( is_slider, field, '.bitem', '.element_is_disabled' ),
+						//field_index = $.tmEPOAdmin.find_index( is_slider, field ),
+						has_enabled = field.find('.is_enabled'),
+						is_enabled = field.find('.is_enabled').val() == 1;
+
+					if ( has_enabled.length && ! is_enabled ){
+						//remove_disabled_fields++;
+						return true;
+					}
 
 					if ( name.length == 1 ) {
 						var value = name.val();
@@ -1786,7 +1829,7 @@
 		element_logic_init: function ( el ) {
 			var _el = $( el ),
 				is_slider = _el.closest( ".builder_wrapper" ).is( ".tm-slider-wizard" ),
-				field_index = $.tmEPOAdmin.find_index( is_slider, _el );
+				field_index = $.tmEPOAdmin.find_index( is_slider, _el, '.bitem', '.element_is_disabled' );
 			$.tmEPOAdmin.check_section_logic();
 			$.tmEPOAdmin.check_element_logic( _el );
 			var logicobj = $.extend( true, {}, $.tmEPOAdmin.get_element_logic_init() );
@@ -1968,6 +2011,7 @@
 					if ( typeof(_rule) != 'function' && _rule != null ) {
 						var current_rule = rule.clone(),
 							set_select = current_rule.find( '.cpf-logic-element' ).find( 'option[data-section="' + _rule.section + '"][value="' + _rule.element + '"]' );
+						
 						if ( $( set_select ).length ) {
 							$( set_select )[ 0 ].selected = true;
 						}
@@ -1990,21 +2034,28 @@
 		},
 
 		logic_get_JSON: function ( s ) {
-			var rules = $( s ).find( ".builder-logic-div" );
-			var this_section_id = s.find( '.tm-builder-sections-uniqid' ).val();
-			var section_logic = {};
-			var _toggle = rules.find( ".epo-rule-toggle" ).val();
-			var _what = rules.find( ".epo-rule-what" ).val();
+
+			var rules = $( s ).find( ".builder-logic-div" ),
+				this_section_id = s.find( '.tm-builder-sections-uniqid' ).val(),
+				section_logic = {},
+				_toggle = rules.find( ".epo-rule-toggle" ).val(),
+				_what = rules.find( ".epo-rule-what" ).val();
+
 			section_logic.section = this_section_id;
 			section_logic.toggle = _toggle;
 			section_logic.what = _what;
 			section_logic.rules = [];
+
 			rules.find( ".tm-logic-wrapper" ).children( ".tm-logic-rule" ).each( function ( i, el ) {
-				var cpf_logic_section = $( el ).find( ".cpf-logic-element" ).children( "option:selected" ).attr( 'data-section' );
-				var cpf_logic_element = $( el ).find( ".cpf-logic-element" ).val();
-				var cpf_logic_operator = $( el ).find( ".cpf-logic-operator" ).val();
-				var cpf_logic_value = $( el ).find( ".cpf-logic-value" ).val();
-				if ( ! $( el ).find( ".cpf-logic-value" ).is( "select" ) ) {
+
+				el = $(el);
+				var $cpf_logic_element = el.find( ".cpf-logic-element" ),
+					cpf_logic_section = $cpf_logic_element.children( "option:selected" ).attr( 'data-section' ),
+					cpf_logic_element = $cpf_logic_element.val(),
+					cpf_logic_operator = el.find( ".cpf-logic-operator" ).val(),
+					cpf_logic_value = el.find( ".cpf-logic-value" ).val();
+				
+				if ( ! el.find( ".cpf-logic-value" ).is( "select" ) ) {
 					cpf_logic_value = $.tmEPOAdmin.tm_escape( cpf_logic_value );
 				}
 
@@ -2016,24 +2067,36 @@
 				} );
 
 			} );
+
 			return JSON.stringify( section_logic );
+
 		},
 
 		element_logic_get_JSON: function ( s ) {
-			var rules = $( s ).find( ".builder-logic-div" );
-			var this_element_id = s.find( '.tm-builder-element-uniqid' ).val();
-			var element_logic = {};
-			var _toggle = rules.find( ".epo-rule-toggle" ).val();
-			var _what = rules.find( ".epo-rule-what" ).val();
+			
+			var rules 			= $( s ).find( ".builder-logic-div" ),
+				this_element_id = s.find( '.tm-builder-element-uniqid' ).val(),
+				element_logic 	= {},
+				_toggle 		= rules.find( ".epo-rule-toggle" ).val(),
+				_what 			= rules.find( ".epo-rule-what" ).val();
+			
 			element_logic.element = this_element_id;
 			element_logic.toggle = _toggle;
 			element_logic.what = _what;
 			element_logic.rules = [];
+			
 			rules.find( ".tm-logic-wrapper" ).children( ".tm-logic-rule" ).each( function ( i, el ) {
-				var cpf_logic_section = $( el ).find( ".cpf-logic-element" ).children( "option:selected" ).attr( 'data-section' );
-				var cpf_logic_element = $( el ).find( ".cpf-logic-element" ).val();
-				var cpf_logic_operator = $( el ).find( ".cpf-logic-operator" ).val();
-				var cpf_logic_value = $( el ).find( ".cpf-logic-value" ).val();
+
+				el = $(el);
+				var $cpf_logic_element 	= el.find( ".cpf-logic-element" ),
+					cpf_logic_section 	= $cpf_logic_element.children( "option:selected" ).attr( 'data-section' ),
+					cpf_logic_element 	= $cpf_logic_element.val(),
+					cpf_logic_operator 	= el.find( ".cpf-logic-operator" ).val(),
+					cpf_logic_value 	= el.find( ".cpf-logic-value" ).val();
+
+				//if ( ! el.find( ".cpf-logic-value" ).is( "select" ) ) {
+				//	cpf_logic_value = $.tmEPOAdmin.tm_escape( cpf_logic_value );
+				//}
 
 				element_logic.rules.push( {
 					"section": cpf_logic_section,
@@ -2043,7 +2106,9 @@
 				} );
 
 			} );
+
 			return JSON.stringify( element_logic );
+
 		},
 
 		cpf_add_rule: function ( e ) {
@@ -2195,7 +2260,7 @@
 
 					return true; // skip
 				}
-
+				
 				$.each( element_rules[ "rules" ], function ( i, rule ) {
 					var copy = rule;
 					if ( l.start.section != "check" ) {
@@ -2254,7 +2319,7 @@
 				return [];//false wrong rule
 			} else {
 				var section = $( ".tm-builder-sections-uniqid[value='" + rule[ "section" ] + "']" ).closest( ".builder_wrapper" ),
-					element = $( section ).find( ".bitem_wrapper" ).children( ".bitem" ).eq( rule[ "element" ] ),
+					element = $( section ).find( ".bitem_wrapper" ).children( ".bitem" ).not('.element_is_disabled').eq( rule[ "element" ] ),
 					check = false;
 
 				if ( $( element ).is( ".element-radiobuttons,.element-checkboxes,.element-selectbox" ) ) {
@@ -2262,6 +2327,7 @@
 					var tm_option_values = $( element ).find( '.tm_option_value' );
 
 					tm_option_values.each( function ( index, value ) {
+
 						if ( $.tmEPOAdmin.tm_escape( $( value ).val() ) == rule[ "value" ] ) {
 							check = true;
 							return false;
@@ -2343,7 +2409,7 @@
 							}
 							return builder_wrapper.find( '.bitem_wrapper' )
 								.map( function ( i, e ) {
-									return $( e ).children( '.bitem' ).not( '.pl2' ).length;
+									return $( e ).children( '.bitem' ).not( '.pl2, .element_is_disabled' ).length;
 								} ).get().join( "," );
 						} );
 						$.tmEPOAdmin.builder_items_sortable_obj[ "start" ].section = builder_wrapper.find( ".tm-builder-sections-uniqid" ).val();
@@ -2373,7 +2439,7 @@
 							}
 							return builder_wrapper.find( '.bitem_wrapper' )
 								.map( function ( i, e ) {
-									return $( e ).children( '.bitem' ).not( '.pl2' ).length;
+									return $( e ).children( '.bitem' ).not( '.pl2, .element_is_disabled' ).length;
 								} ).get().join( "," );
 						} );
 					}
@@ -2432,7 +2498,7 @@
 					}
 					return builder_wrapper.find( '.bitem_wrapper' )
 						.map( function ( i, e ) {
-							return $( e ).children( '.bitem' ).not( '.pl2' ).length;
+							return $( e ).children( '.bitem' ).not( '.pl2, .element_is_disabled' ).length;
 						} ).get().join( "," );
 				} );
 
@@ -2585,6 +2651,10 @@
 			} );
 
 			var _to = $( "body" ).tm_floatbox( {
+				"closefadeouttime": 0,
+				//"animationBaseClass": "",
+				//"animateIn": "",
+				"animateOut": "",
 				"fps": 1,
 				"ismodal": true,
 				"refresh": "fixed",
@@ -2639,6 +2709,7 @@
 			var _bs = $( this ).closest( ".hstc2" );
 			var _s = $( this ).closest( ".hstc2" ).find( ".inside:first" );
 			var _c = _s.tm_clone();
+			var original_enabled = _s.find('.is_enabled').val();
 			$.tmEPOAdmin.gen_events( bitem );
 			var $_html = $.tmEPOAdmin.builder_floatbox_template( {
 				"id": "temp_for_floatbox_insert",
@@ -2647,6 +2718,10 @@
 				"uniqid": (bitem.is( '.element-variations' ) || bitem.find( ".tm-builder-element-uniqid" ).length == 0) ? "" : tm_epo_admin.i18n_element_uniqid + ":" + bitem.find( ".tm-builder-element-uniqid" ).val()
 			} );
 			var _to = $( "body" ).tm_floatbox( {
+				"closefadeouttime": 0,
+				//"animationBaseClass": "",
+				//"animateIn": "",
+				"animateOut": "",
 				"fps": 1,
 				"ismodal": true,
 				"refresh": "fixed",
@@ -2690,7 +2765,56 @@
 				$.tmEPOAdmin.builder_clone_after_events( _s );
 				_s.find( ".tm-header-title" ).trigger( "changetitle.cpf" );
 				$.tmEPOAdmin.logic_reindex_force();
+
 				if ( _to ) _to.cancelfunc();
+
+				if ( _s.find('.is_enabled').val() == '0' ){
+					bitem.addClass('element_is_disabled');
+				}else{
+					bitem.removeClass('element_is_disabled');
+				}
+				var new_enabled = _s.find('.is_enabled').val();
+				if ( original_enabled !=  new_enabled ){
+					var bitem_wrapper = bitem.closest('.bitem_wrapper'),
+						section = bitem.closest('.builder_wrapper'),
+						sections = $( ".builder_layout .builder_wrapper" ).not(section),
+						section_id = section.find('.tm-builder-sections-uniqid').val(),
+						is_slider = section.is( ".tm-slider-wizard" ),
+						true_field_index = $.tmEPOAdmin.find_index( is_slider, bitem ),
+						new_field_index = $.tmEPOAdmin.find_index( is_slider, bitem, '.bitem', '.element_is_disabled' );
+
+					section.find('.bitem').not(bitem).each( function ( i, el ) {
+						el = $(el);
+						var rules = el.find( ".tm-builder-clogic" ).val() || "null";
+						rules = rules.tmparseJSON();
+						rules = $.tmEPOAdmin.logic_check_rules_reindex( el, rules, true_field_index, new_field_index, section_id, new_enabled );
+						el.find( ".tm-builder-clogic" ).val( JSON.stringify( rules ) );
+					});
+
+					// needs check if element in rule is from the section above, otherwise no need to checnge the rule.
+					sections.each( function ( i0, el ) {
+						el = $(el);
+						var section_elements = el.find( ".section_elements" );
+
+						var rules = section_elements.find( ".tm-builder-clogic" ).val() || "null";
+						rules = rules.tmparseJSON();
+						rules = $.tmEPOAdmin.logic_check_rules_reindex( el, rules, true_field_index, new_field_index, section_id, new_enabled );
+						section_elements.find( ".tm-builder-clogic" ).val( JSON.stringify( rules ) );
+						//section_elements.find( ".tm-builder-clogic" ).val( $.tmEPOAdmin.logic_get_JSON(section_elements, new_field_index, section_id ) );
+
+						el.find('.bitem').not(bitem).each( function ( i2, bel ) {
+							bel = $(bel);
+	
+							var rules = bel.find( ".tm-builder-clogic" ).val() || "null";
+							rules = rules.tmparseJSON();
+							rules = $.tmEPOAdmin.logic_check_rules_reindex( el, rules, true_field_index, new_field_index, section_id, new_enabled );
+							bel.find( ".tm-builder-clogic" ).val( JSON.stringify( rules ) );
+							//bel.find( ".tm-builder-clogic" ).val( $.tmEPOAdmin.element_logic_get_JSON( bel, new_field_index, section_id) );
+						});
+					});
+
+				}
+
 			} );
 			_s.appendTo( "#temp_for_floatbox_insert" );
 			if ( bitem.is( '.element-variations' ) ) {
@@ -2709,6 +2833,68 @@
 			$.tmEPOAdmin.paginattion_init();
 		},
 
+		logic_check_rules_reindex: function ( el, rules, true_field_index, new_field_index, section_id, new_enabled ) {
+
+			if ( typeof rules != "object" || rules === null ) {
+				rules = {};
+			}
+			if ( ! ("toggle" in rules) ) {
+				rules.toggle = "show";
+			}
+			if ( ! ("what" in rules) ) {
+				rules.what = "any";
+			}
+			if ( ! ("rules" in rules) ) {
+				rules.rules = [];
+			}
+
+			var copy = rules,
+				_logic = $.tmEPOAdmin.element_logic_object;
+
+			true_field_index = parseInt(true_field_index); 
+			new_field_index = parseInt(new_field_index); 
+			new_enabled = parseInt(new_enabled);
+
+			$.each( rules.rules, function ( i, _rule ) {
+
+				var section = _rule.section,
+					element = _rule.element;
+
+				if ( section == section_id && element.toString().tm_isNumeric() ){
+					element = parseInt(element);
+					if ( true_field_index == element ){
+
+						if ( new_enabled == 0){
+							delete copy.rules[ i ];
+							el.addClass( "tm-wrong-rule" );
+						}
+						else if ( new_enabled == 1){
+							element++;
+							copy.rules[ i ].element = element.toString();
+						}
+
+					}else if ( true_field_index < element ){
+
+						if ( new_enabled == 0){
+							element--;
+							copy.rules[ i ].element = element.toString();
+						}
+						else if ( new_enabled == 1){
+							element++;
+							copy.rules[ i ].element = element.toString();
+						}
+
+					}
+				}
+
+			} );
+
+			copy.rules = $.tm_array_values( copy.rules );
+
+			return copy;
+
+		},
+
 		// Add Element draggable to sortable
 		drag_drop: function ( event, ui, dropable ) {
 			var selected_element = $( ui.draggable ).attr( 'class' ).split( /\s+/ ).filter( function ( item ) {
@@ -2722,7 +2908,9 @@
 
 		// Add Element to sortable via Add button
 		builder_clone_element: function ( element, wrapper_selector, append_or_prepend ) {
-			var _template = $( '.builder_hidden_elements' ).data( 'template' );
+			//var _template = $( '.builder_hidden_elements' ).data( 'template' );
+			var _template = $.fn.tm_template( template_engine.tc_builder_elements, {} );
+			
 			if ( ! _template ) {
 				return;
 			}
@@ -2730,7 +2918,7 @@
 				append_or_prepend = "append";
 			}
 			wrapper_selector = $( wrapper_selector );
-			var _clone = $( _template[ 'html' ] ).filter( ".bitem.element-" + element ).tm_clone( true );
+			var _clone = $( _template ).filter( ".bitem.element-" + element ).tm_clone( true );
 			if ( _clone ) {
 				_clone.find( '.tm-builder-element-uniqid' ).val( $.tm_uniqid( "", true ) );
 				if ( $( ".builder_wrapper" ).length <= 0 ) {
@@ -2758,7 +2946,7 @@
 					}
 					return wrapper_selector.find( '.bitem_wrapper' )
 						.map( function ( i, e ) {
-							return $( e ).children( '.bitem' ).not( '.pl2' ).length;
+							return $( e ).children( '.bitem' ).not( '.pl2, .element_is_disabled' ).length;
 						} ).get().join( "," );
 				} );
 				_clone.find( ".tm-tabs" ).tmtabs();
@@ -2811,7 +2999,7 @@
 					}
 					return _clone.closest( ".builder_wrapper" ).find( '.bitem_wrapper' )
 						.map( function ( i, e ) {
-							return $( e ).children( '.bitem' ).not( '.pl2' ).length;
+							return $( e ).children( '.bitem' ).not( '.pl2, .element_is_disabled' ).length;
 						} ).get().join( "," );
 				} );
 				_clone.find( ".tm-header-title" ).data( "id", _clone );
@@ -3233,7 +3421,7 @@
 					}
 					return $this.find( '.bitem_wrapper' )
 						.map( function ( i, e ) {
-							return $( e ).children( '.bitem' ).not( '.pl2' ).length;
+							return $( e ).children( '.bitem' ).not( '.pl2, .element_is_disabled' ).length;
 						} ).get().join( "," );
 				} );
 				$this.find( ".tm_builder_sections_size" ).val( function () {
@@ -3660,7 +3848,10 @@
 	var _tm_ajax_check = 0;
 
 	function tm_license_check( action ) {
-		if ( _tm_ajax_check == 0 ) {
+
+		var tm_epo_consent_for_transmit = $('#tm_epo_consent_for_transmit');
+
+		if ( tm_epo_consent_for_transmit.length && tm_epo_consent_for_transmit.is(':checked') && _tm_ajax_check == 0 ) {
 			_tm_ajax_check = 0
 			$( '.tm-license-button' ).block( {
 				message: null,
@@ -3824,7 +4015,8 @@
 				var items = o.table.find( '.tm-section-desc .tm-section-menu-item' );
 
 				if ( items.length > 0 ) {
-					var mitem = Cookies.get( 'tmadminextratab' ),
+					//var mitem = Cookies.get( 'tmadminextratab' ),
+					var mitem = wpCookies.get( 'tmadminextratab' ),
 						item = items.filter( '[data-menu="' + mitem + '"]' ),
 						inputs = o.table.find( 'select,input,text,textarea' );
 
@@ -3841,13 +4033,16 @@
 					table = item.closest( '.tm-tab' ),
 					inputs = table.find( 'select,input,text,textarea' );
 				show_sub_section( mitem, item, inputs, table );
-				Cookies.set( 'tmadminextratab', mitem, { expires: 7, path: '' } );
+				//Cookies.set( 'tmadminextratab', mitem, { expires: 7, path: '' } );
+				wpCookies.set( 'tmadminextratab', mitem, 7 * 24 * 60, '' );
 			} );
 			$( window ).on( "tc-tmtabs-clicked", function ( e, o ) {
 				var items = o.table.find( '.tm-section-desc .tm-section-menu-item' );
 				if ( items.length > 0 ) {
-					var mitem = Cookies.get( 'tmadminextratab' ),
-						c = Cookies.get( 'tmadminextratab-context' ),
+					//var mitem = Cookies.get( 'tmadminextratab' ),
+					var mitem = wpCookies.get( 'tmadminextratab' ),
+						//c = Cookies.get( 'tmadminextratab-context' ),
+						c = wpCookies.get( 'tmadminextratab-context' ),
 						con = o.header.attr( o.options.dataattribute ),
 						items = o.table.find( '.tm-section-desc .tm-section-menu-item' ),
 						item,
@@ -3862,7 +4057,8 @@
 					}
 					if ( item.length > 0 && ! item.is( '.active' ) ) {
 						show_sub_section( mitem, item, inputs, o.table );
-						Cookies.set( 'tmadminextratab-context', con );
+						//Cookies.set( 'tmadminextratab-context', con );
+						wpCookies.set( 'tmadminextratab-context', con );
 					}
 				}
 			} );
@@ -3981,6 +4177,10 @@
 									"title": tm_epo_admin.i18n_error_title
 								} );
 								var temp_floatbox = $( "body" ).tm_floatbox( {
+									"closefadeouttime": 0,
+									//"animationBaseClass": "",
+									//"animateIn": "",
+									"animateOut": "",
 									"fps": 1,
 									"ismodal": true,
 									"refresh": "fixed",

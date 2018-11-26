@@ -83,7 +83,7 @@ function tc_epo_load_textdomain() {
 		load_textdomain( $domain, $global_mo2 );
 	} else {
 		// wp-content/plugins/plugin-name/languages/plugin-name-$locale.mo
-		load_plugin_textdomain( 'woocommerce-tm-extra-product-options', FALSE, TM_EPO_DIRECTORY . '/languages/' );
+		load_plugin_textdomain( 'woocommerce-tm-extra-product-options', FALSE, $domain . '/languages/' );
 	}
 }
 

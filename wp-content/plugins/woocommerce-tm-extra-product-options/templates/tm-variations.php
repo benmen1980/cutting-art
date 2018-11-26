@@ -264,13 +264,20 @@ if (
 
 							$element_display = new TM_EPO_FIELDS_select();
 
+							$selected = isset( $_REQUEST[ 'attribute_' . sanitize_title( $name ) ] ) ? wc_clean( stripslashes( urldecode( $_REQUEST[ 'attribute_' . sanitize_title( $name ) ] ) ) ) : $selected_value;
+
 							$fake_element = array(
 								"use_url"                => "",
 								"textbeforeprice"        => "",
 								"textafterprice"         => "",
 								"hide_amount"            => "hidden",
 								"changes_product_image"  => $changes_product_image,
-								"placeholder"            => esc_attr__( 'Choose an option', 'woocommerce' ),
+								"placeholder"            => esc_attr( apply_filters( 'wc_epo_dropdown_variation_attribute_placeholder', __( 'Choose an option', 'woocommerce' ), array( 
+									'options' => $options, 
+									'attribute' => $name, 
+									'product' => $tm_product, 
+									'selected' => $selected 
+								)  ) ),
 								"default_value"          => $default_value,
 								"default_value_override" => TRUE,
 								"imagesp"                => $imagesp,

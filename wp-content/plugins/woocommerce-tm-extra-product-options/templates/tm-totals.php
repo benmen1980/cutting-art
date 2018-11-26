@@ -42,6 +42,7 @@ if ( !defined( 'TM_EPO_PLUGIN_SECURITY' ) ) {
          data-taxable="<?php echo $taxable; ?>"
          data-tax-rate="<?php echo $tax_rate; ?>"
          data-base-tax-rate="<?php echo $base_tax_rate; ?>"
+         data-taxes-of-one="<?php echo $taxes_of_one; ?>"
          data-base-taxes-of-one="<?php echo $base_taxes_of_one; ?>"
          data-modded-taxes-of-one="<?php echo $modded_taxes_of_one; ?>"
          data-tax-string="<?php echo $tax_string; ?>"

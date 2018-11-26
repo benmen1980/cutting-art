@@ -254,46 +254,50 @@ if (!empty($changes_product_image)){
 	$attachment_id = TM_EPO_HELPER()->get_attachment_id( $image_link );
 	$attachment_id = ($attachment_id) ? $attachment_id : 0;
 	$attachment_object = get_post( $attachment_id );
-	$full_src = wp_get_attachment_image_src( $attachment_id, 'large' );
-	$image_title = get_the_title( $attachment_id );
-	$image_alt = trim( strip_tags( get_post_meta( $attachment_id, '_wp_attachment_image_alt', TRUE ) ) );
-	$image_srcset = function_exists( 'wp_get_attachment_image_srcset' ) ? wp_get_attachment_image_srcset( $attachment_id, 'shop_single' ) : FALSE;
-	$image_sizes = function_exists( 'wp_get_attachment_image_sizes' ) ? wp_get_attachment_image_sizes( $attachment_id, 'shop_single' ) : FALSE;
-	$image_caption = $attachment_object->post_excerpt;
-	$image_variations['image'] = array(
-		'image_link'    => $image_link,
-		'image_title'   => $image_title,
-		'image_alt'     => $image_alt,
-		'image_srcset'  => $image_srcset,
-		'image_sizes'   => $image_sizes,
-		'image_caption' => $image_caption,
-		'image_id'      => $attachment_id,
-		'full_src'      => $full_src[0],
-		'full_src_w'    => $full_src[1],
-		'full_src_h'    => $full_src[2],
-	);
+	if ( $attachment_object ){
+		$full_src = wp_get_attachment_image_src( $attachment_id, 'large' );
+		$image_title = get_the_title( $attachment_id );
+		$image_alt = trim( strip_tags( get_post_meta( $attachment_id, '_wp_attachment_image_alt', TRUE ) ) );
+		$image_srcset = function_exists( 'wp_get_attachment_image_srcset' ) ? wp_get_attachment_image_srcset( $attachment_id, 'shop_single' ) : FALSE;
+		$image_sizes = function_exists( 'wp_get_attachment_image_sizes' ) ? wp_get_attachment_image_sizes( $attachment_id, 'shop_single' ) : FALSE;
+		$image_caption = $attachment_object->post_excerpt;
+		$image_variations['image'] = array(
+			'image_link'    => $image_link,
+			'image_title'   => $image_title,
+			'image_alt'     => $image_alt,
+			'image_srcset'  => $image_srcset,
+			'image_sizes'   => $image_sizes,
+			'image_caption' => $image_caption,
+			'image_id'      => $attachment_id,
+			'full_src'      => $full_src[0],
+			'full_src_w'    => $full_src[1],
+			'full_src_h'    => $full_src[2],
+		);
+	}
 
 	$image_link = $imagep;
 	$attachment_id = TM_EPO_HELPER()->get_attachment_id( $image_link );
 	$attachment_object = get_post( $attachment_id );
-	$full_src = wp_get_attachment_image_src( $attachment_id, 'large' );
-	$image_title = get_the_title( $attachment_id );
-	$image_alt = trim( strip_tags( get_post_meta( $attachment_id, '_wp_attachment_image_alt', TRUE ) ) );
-	$image_srcset = function_exists( 'wp_get_attachment_image_srcset' ) ? wp_get_attachment_image_srcset( $attachment_id, 'shop_single' ) : FALSE;
-	$image_sizes = function_exists( 'wp_get_attachment_image_sizes' ) ? wp_get_attachment_image_sizes( $attachment_id, 'shop_single' ) : FALSE;
-	$image_caption = $attachment_object->post_excerpt;
-	$image_variations['imagep'] = array(
-		'image_link'    => $image_link,
-		'image_title'   => $image_title,
-		'image_alt'     => $image_alt,
-		'image_srcset'  => $image_srcset,
-		'image_sizes'   => $image_sizes,
-		'image_caption' => $image_caption,
-		'image_id'      => $attachment_id,
-		'full_src'      => $full_src[0],
-		'full_src_w'    => $full_src[1],
-		'full_src_h'    => $full_src[2],
-	);
+	if ( $attachment_object ){
+		$full_src = wp_get_attachment_image_src( $attachment_id, 'large' );
+		$image_title = get_the_title( $attachment_id );
+		$image_alt = trim( strip_tags( get_post_meta( $attachment_id, '_wp_attachment_image_alt', TRUE ) ) );
+		$image_srcset = function_exists( 'wp_get_attachment_image_srcset' ) ? wp_get_attachment_image_srcset( $attachment_id, 'shop_single' ) : FALSE;
+		$image_sizes = function_exists( 'wp_get_attachment_image_sizes' ) ? wp_get_attachment_image_sizes( $attachment_id, 'shop_single' ) : FALSE;
+		$image_caption = $attachment_object->post_excerpt;
+		$image_variations['imagep'] = array(
+			'image_link'    => $image_link,
+			'image_title'   => $image_title,
+			'image_alt'     => $image_alt,
+			'image_srcset'  => $image_srcset,
+			'image_sizes'   => $image_sizes,
+			'image_caption' => $image_caption,
+			'image_id'      => $attachment_id,
+			'full_src'      => $full_src[0],
+			'full_src_w'    => $full_src[1],
+			'full_src_h'    => $full_src[2],
+		);
+	}
 }
 /*
 $image_link = $imagec;

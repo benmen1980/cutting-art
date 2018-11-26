@@ -118,7 +118,6 @@ if ( !isset( $fieldtype ) ) {
 		}
 		$year_html = TM_EPO_HTML()->tm_make_select( $selectArray, $select_options, $selectedvalue = isset( $_POST[ $name . "_year" ] ) ? $_POST[ $name . "_year" ] : "", 1, 0 );
 
-
 		switch ( $format ) {
 			case "0":
 			case "2":

@@ -94,8 +94,9 @@ if ( !empty( $description ) && (empty( $description_position ) || $description_p
 	if ( !empty( $description_color ) ) {
 		echo ' style="color:' . $description_color . '"';
 	}
-	echo ' class="tm-description' . ($description_position == "tooltip" || $description_position == "icontooltipright" || $description_position == "icontooltipleft" ? " tm-tip-html" : "") . '">' . do_shortcode( $description ) . '</div>';
-
+	echo ' class="tm-description' . ($description_position == "tooltip" || $description_position == "icontooltipright" || $description_position == "icontooltipleft" ? " tm-tip-html" : "") . '">' ;
+	echo do_shortcode( $description );
+	echo '</div>';
 }
 echo $divider;
 if ( $style == "collapse" ) {

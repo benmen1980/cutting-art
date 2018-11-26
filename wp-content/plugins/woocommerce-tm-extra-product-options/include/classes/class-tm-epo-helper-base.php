@@ -208,7 +208,12 @@ final class TM_EPO_HELPER_base {
 								if ( $rules ) {
 									$section = $rules->section;
 									$element = $rules->element;
-									$lvalue = $rules->value;
+									if (property_exists($rules, 'value')){
+										$lvalue = $rules->value;	
+									}else{
+										$lvalue = '';
+									}
+									
 									$operator = $rules->operator;
 
 									if ( $section == $variation_section_id && $element == 0 ) {
@@ -401,24 +406,29 @@ final class TM_EPO_HELPER_base {
 			}
 
 			foreach ($checkmultiple as $idata) {
-				$found = false;
+
 				$min_max=array();
-				if (count($idata['options'])<=count($idata['found'])){
-					foreach ($idata['found'] as $price_data) {
-						$ivalue = $price_data['value'];
-						if (isset($idata['options'][$ivalue])){
-							unset($idata['options'][$ivalue]);
-							$min_max[]= floatval($price_data['price']);
-							if (count($idata['options'])==0){
-								$found = true;
-							}
+
+				foreach ($idata['found'] as $price_data) {
+					$ivalue = $price_data['value'];
+					if (isset($idata['options'][$ivalue])){
+						//unset($idata['options'][$ivalue]);
+						if ( !isset( $min_max[ $ivalue ] ) || ! is_array($min_max[ $ivalue ])){
+							$min_max[ $ivalue ] = array();
 						}
+						$min_max[ $ivalue ][]= floatval($price_data['price']);
+
 					}
 				}
 
-				if ($found){
-					$add_logic_prices = $add_logic_prices + min($min_max);
+				$all_min_max=array();
+				foreach ($min_max as $key => $price_min_max) {
+					$all_min_max[$key] = array_sum($price_min_max);
 				}
+				if (!empty($all_min_max)){
+					$add_logic_prices = $add_logic_prices + min($all_min_max);
+				}
+
 			}
 
 			foreach ($logic_prices as $key => $section_id) {
@@ -528,6 +538,32 @@ final class TM_EPO_HELPER_base {
 			}
 
 			foreach ($checkmultiple as $idata) {
+
+				$min_max=array();
+
+				foreach ($idata['found'] as $price_data) {
+					$ivalue = $price_data['value'];
+					if (isset($idata['options'][$ivalue])){
+
+						if ( !isset($min_max[ $ivalue ]) || !is_array($min_max[ $ivalue ])){
+							$min_max[ $ivalue ] = array();
+						}
+						$min_max[ $ivalue ][]= floatval($price_data['price']);
+
+					}
+				}
+
+				$all_min_max=array();
+				foreach ($min_max as $key => $price_min_max) {
+					$all_min_max[$key] = array_sum($price_min_max);
+				}
+				if (!empty($all_min_max)){
+					$add_logic_prices_max = $add_logic_prices_max + min($all_min_max);	
+				}
+				
+			}
+
+			/*foreach ($checkmultiple as $idata) {
 				$found = false;
 				$min_max=array();
 				if (count($idata['options'])<=count($idata['found'])){
@@ -546,7 +582,7 @@ final class TM_EPO_HELPER_base {
 				if ($found){
 					$add_logic_prices_max = $add_logic_prices_max + max($min_max);
 				}
-			}
+			}*/
 
 			foreach ($logic_prices as $key => $section_id) {
 				foreach ($section_id as $prices) {
@@ -620,7 +656,7 @@ final class TM_EPO_HELPER_base {
 		$r = array();
 
 		foreach ( $b as $key => $value ) {
-			if ( $value === '' ) {
+			if ( $value === '' && isset( $a[ $key ] ) ) {
 				$r[ $key ] = $a[ $key ];
 			} else {
 				$r[ $key ] = $value;

@@ -173,7 +173,7 @@ final class TM_EPO_UPDATE_Licenser {
 						break;
 					case "15":
 						$status = 'updated';
-						$message = __( 'Cannot deactivate. Purchase code is not valid for your save license key!', 'woocommerce-tm-extra-product-options' );
+						$message = __( 'Cannot deactivate. Purchase code is not valid for your saved license key!', 'woocommerce-tm-extra-product-options' );
 						break;
 				}
 			}

@@ -614,7 +614,7 @@ final class TM_EPO_ADMIN_Global_base {
 			case "applied_on":
 				$tm_meta_cat = get_post_meta( $post_id, 'tm_meta_disable_categories', TRUE );
 				$tm_meta_id = apply_filters( 'wc_epo_tm_meta_product_ids', get_post_meta( $post_id, 'tm_meta_product_ids', TRUE ), $post_id );
-				if ( count( $tm_meta_id ) == 1 && empty( $tm_meta_id[0] ) ) {
+				if ( is_array( $tm_meta_id ) && count( $tm_meta_id ) == 1 && empty( $tm_meta_id[0] ) ) {
 					$tm_meta_id = FALSE;
 				}
 				if ( $tm_meta_cat ) {
@@ -665,7 +665,7 @@ final class TM_EPO_ADMIN_Global_base {
 
 			case 'product_ids' :
 				$tm_meta = apply_filters( 'wc_epo_tm_meta_product_ids', get_post_meta( $post_id, 'tm_meta_product_ids', TRUE ), $post_id );
-				if ( count( $tm_meta ) == 1 && empty( $tm_meta[0] ) ) {
+				if ( is_array( $tm_meta ) && count( $tm_meta ) == 1 && empty( $tm_meta[0] ) ) {
 					$tm_meta = FALSE;
 				}
 				if ( !empty( $tm_meta ) ) {
@@ -814,11 +814,18 @@ final class TM_EPO_ADMIN_Global_base {
 
 	public function tm_product_search_meta_box( $post ) {
 		$disabled = '';
+		$meta = $post->tm_meta; 
 		if ( !TM_EPO_WPML()->is_original_product( $post->ID, $post->post_type ) ) {
 			$disabled = 'disabled="disabled" ';
 		}
-		$meta = $post->tm_meta; ?>
+		?>
         <h3 id="tc_disabled_categories" class="hidden">
+			<?php if ( !empty($disabled) &&  $meta['disable_categories']==1){
+			?>
+			
+			<input type="hidden" value="1" id="tm_meta_disable_categories" name="tm_meta_disable_categories" />
+			<?php
+			}?>        	
             <label for="tm_meta_disable_categories">
                 <input <?php echo $disabled; ?>type="checkbox" value="1" id="tm_meta_disable_categories"
                        name="tm_meta_disable_categories"
@@ -1532,7 +1539,7 @@ final class TM_EPO_ADMIN_Global_base {
 		$customPostTaxonomies = get_object_taxonomies( TM_EPO_GLOBAL_POST_TYPE );
 		$show_option_all = apply_filters( 'list_cats', __( 'Select a category', 'woocommerce-tm-extra-product-options' ) );
 
-		if ( count( $customPostTaxonomies ) > 0 ) {
+		if ( is_array( $customPostTaxonomies ) && count( $customPostTaxonomies ) > 0 ) {
 			foreach ( $customPostTaxonomies as $tax ) {
 				$output .= "<select name='$tax' id='dropdown_$tax'>\n";
 
@@ -1652,6 +1659,7 @@ final class TM_EPO_ADMIN_Global_base {
 				'jquery-ui-sortable',
 				'jquery-ui-tabs',
 				'json2',
+				'wp-util',
 				'tm-scripts',
 				'tm_fileupload',
 			), $this->version );

@@ -172,7 +172,7 @@ if ( !function_exists( 'tc_get_tax_class' ) ) {
 	function tc_get_tax_class( $product, $context = false ) {
 		if ( is_callable( array( $product, 'get_tax_class' ) ) ) {
 
-			if ( version_compare( WC_VERSION, '2.7', '<' ) ) {
+			if ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '2.7', '<' ) ) {
 				return $product->get_tax_class();
 			}else{
 				if ($context !== false){
@@ -214,17 +214,18 @@ if ( !function_exists( 'tc_get_post_meta' ) ) {
 	 */
 	function tc_get_post_meta( $post_id, $meta_key = '', $single = FALSE ) {
 		$meta = FALSE;
-		if ( version_compare( WC_VERSION, '2.7', '<' ) ) {
+		if ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '2.7', '<' ) ) {
 			$meta = get_post_meta( $post_id, $meta_key, $single );
 		} else {
-			if ( is_numeric( $post_id ) ) {
+			if ( function_exists('wc_get_product') && is_numeric( $post_id ) ) {
 				$product = wc_get_product( $post_id );
 				if ( is_object( $product ) ) {
 					$meta = $product->get_meta( $meta_key, $single );
 				} else {
 					$meta = get_post_meta( $post_id, $meta_key, $single );
 				}
-
+			}else{
+				$meta = get_post_meta( $post_id, $meta_key, $single );
 			}
 		}
 		//needed in some rare occassions where WordPress doesn't unserialize the data
@@ -245,7 +246,7 @@ if ( !function_exists( 'tc_update_post_meta' ) ) {
 	 */
 	function tc_update_post_meta( $post_id, $meta_key, $meta_value, $prev_value = '' ) {
 
-		if ( version_compare( WC_VERSION, '2.7', '<' ) ) {
+		if ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '2.7', '<' ) ) {
 			return update_post_meta( $post_id, $meta_key, $meta_value, $prev_value );
 		} else {
 			if ( is_numeric( $post_id ) ) {
@@ -275,7 +276,7 @@ if ( !function_exists( 'tc_delete_post_meta' ) ) {
 	 */
 	function tc_delete_post_meta( $post_id, $meta_key, $meta_value = '' ) {
 
-		if ( version_compare( WC_VERSION, '2.7', '<' ) ) {
+		if ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '2.7', '<' ) ) {
 			return delete_post_meta( $post_id, $meta_key, $meta_value );
 		} else {
 			if ( is_numeric( $post_id ) ) {
@@ -306,7 +307,7 @@ if ( !function_exists( 'tc_add_post_meta' ) ) {
 	 */
 	function tc_add_post_meta( $post_id, $meta_key, $meta_value, $unique = FALSE ) {
 
-		if ( version_compare( WC_VERSION, '2.7', '<' ) ) {
+		if ( defined( 'WC_VERSION' ) && version_compare( WC_VERSION, '2.7', '<' ) ) {
 			return add_post_meta( $post_id, $meta_key, $meta_value, $unique );
 		} else {
 			if ( is_numeric( $post_id ) ) {

@@ -356,7 +356,9 @@
 [class^="icon-"]:before, [class*=" icon-"]:before, .tcfa:before{
     cursor:inherit !important;
 }
-
+.bitem.element_is_disabled {
+    opacity: 0.4;
+}
 .bitem .clone:hover,.bitem .edit:hover,.bitem .delete:hover,.bitem .plus:hover,.bitem .minus:hover{
     -webkit-transition: all 0.2s linear;
     -moz-transition:    all 0.2s linear;

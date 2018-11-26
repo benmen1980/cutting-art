@@ -3,6 +3,7 @@
 class TM_EPO_FIELDS_select extends TM_EPO_FIELDS {
 
 	public function display_field( $element = array(), $args = array() ) {
+
 		$changes_product_image = empty( $element['changes_product_image'] ) ? "" : $element['changes_product_image'];
 		$display = array(
 			'options'               => '',
@@ -32,37 +33,6 @@ class TM_EPO_FIELDS_select extends TM_EPO_FIELDS {
 		}
 
 		$selected_value = apply_filters( 'wc_epo_default_value', $selected_value, $element );
-
-
-		// Roy 18.5.18 replace option price by the price list price
-
-		$meta  = get_user_meta(get_current_user_id(), '_priority_price_list');
-		//print_r($meta[0]);
-		$index = 0;
-		if($element['extra_multiple_choices']['SKU']){
-
-
-		foreach($element['rules_filtered'] as $item){
-
-			$sku = $element['extra_multiple_choices']['SKU'][$index];
-			// dont forget to add here the price list by user
-
-			$sqlquery = "SELECT * FROM `wp_p18a_pricelists` WHERE `product_sku` = '".$sku."' and `price_list_code` = '".$meta[0]."'"; // pay attention to syntax of sql query!
-
-			global $wpdb;
-			$newprice = $wpdb->get_results($sqlquery);
-			if($newprice) {
-				$keys = array_keys($element['rules_filtered']);
-				$element['rules_filtered'][$keys[$index]][0] = $newprice[0]->price_list_price;
-			}
-			$index ++;
-		}
-		}
-
-		// end Roy 18.5.18
-
-
-
 
 		foreach ( $element['options'] as $value => $label ) {
 			$default_value = isset( $element['default_value'] )
@@ -147,6 +117,8 @@ class TM_EPO_FIELDS_select extends TM_EPO_FIELDS {
 
 			}
 
+			$text = wptexturize( apply_filters( 'woocommerce_tm_epo_option_name', $label, $element, $_default_value_counter, $value, $label ) );
+
 			$option = '<option ' .
 				selected( $selected, TRUE, 0 ) .
 				' value="' . esc_attr( $value ) . '"' .
@@ -162,10 +134,14 @@ class TM_EPO_FIELDS_select extends TM_EPO_FIELDS {
 				' data-image-variations="' . htmlspecialchars( json_encode( $image_variations ) ) . '"' .
 				' data-rules="' . (isset( $element['rules_filtered'][ $value ] ) ? esc_html( json_encode( ($element['rules_filtered'][ $value ]) ) ) : '') . '"' .
 				' data-original-rules="' . (isset( $element['original_rules_filtered'][ $value ] ) ? esc_html( json_encode( ($element['original_rules_filtered'][ $value ]) ) ) : '') . '"' .
-				' data-rulestype="' . (isset( $element['rules_type'][ $value ] ) ? esc_html( json_encode( ($element['rules_type'][ $value ]) ) ) : '') . '">' .
-				wptexturize( apply_filters( 'woocommerce_tm_epo_option_name', $label, $element, $_default_value_counter, $value, $label ) ) . '</option>';
+				' data-rulestype="' . (isset( $element['rules_type'][ $value ] ) ? esc_html( json_encode( ($element['rules_type'][ $value ]) ) ) : '') . '"' . 
+				' data-text="' . esc_attr( $label )  . '"' . 
+				' data-hide-amount="' . esc_attr( empty( $element['hide_amount'] ) ? "0" : "1" )  . '"' . 			
+				'>' .
+				$text . '</option>';
 
 			$option = apply_filters( 'wc_epo_select_options', $option, $element, $_default_value_counter );
+
 			$display['options'] .= apply_filters( 'wc_epo_multiple_options', $option, $element, $_default_value_counter );
 
 			$display['options_array'][] = array(

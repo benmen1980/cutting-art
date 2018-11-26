@@ -20,6 +20,11 @@ class TM_EPO_FIELDS_upload extends TM_EPO_FIELDS {
 
 		if ( $this->element['required'] ) {
 			foreach ( $this->field_names as $attribute ) {
+				if ( isset( $this->epo_post_fields[ $attribute ] ) && $this->epo_post_fields[ $attribute ] !== "" ) {
+					//var_dump_pre($this->epo_post_fields[ $attribute ]);
+					//die();
+				}else
+
 				if ( empty( $_FILES[ $attribute ] ) || empty( $_FILES[ $attribute ]['name'] ) ) {
 					$passed = FALSE;
 					$message[] = 'required';
@@ -49,7 +54,13 @@ class TM_EPO_FIELDS_upload extends TM_EPO_FIELDS {
 		if ( empty( $this->key ) ) {
 			$_price = 0;
 		}
-		if ( !empty( $_FILES[ $this->attribute ] ) && !empty( $_FILES[ $this->attribute ]['name'] ) ) {
+		$can_be_added = false;
+
+		if ( isset( $this->post_data[ $this->attribute ] ) && $this->post_data[ $this->attribute ] !== "" ) {
+			$value = $this->post_data[ $this->attribute ];
+			$can_be_added = true;
+		}
+		elseif ( !empty( $_FILES[ $this->attribute ] ) && !empty( $_FILES[ $this->attribute ]['name'] ) ) {
 			$upload = TM_EPO()->upload_file( $_FILES[ $this->attribute ] );
 
 			if ( empty( $upload['error'] ) && !empty( $upload['file'] ) ) {
@@ -57,31 +68,35 @@ class TM_EPO_FIELDS_upload extends TM_EPO_FIELDS {
 				if ( empty( $upload['tc'] ) ) {
 					wc_add_notice( __( "Upload successful", 'woocommerce-tm-extra-product-options' ), 'success' );
 				}
+				$can_be_added = true;
 
-				return array(
-					'mode' => 'builder',
-
-					'cssclass'         => esc_html( $this->element['class'] ),
-					'hidelabelincart'  => esc_html( $this->element['hide_element_label_in_cart'] ),
-					'hidevalueincart'  => esc_html( $this->element['hide_element_value_in_cart'] ),
-					'hidelabelinorder' => esc_html( $this->element['hide_element_label_in_order'] ),
-					'hidevalueinorder' => esc_html( $this->element['hide_element_value_in_order'] ),
-					'element'          => $this->order_saved_element,
-
-					'name'                => esc_html( $this->element['label'] ),
-					'value'               => esc_html( $value ),
-					'display'             => esc_html( TM_EPO()->tm_order_item_display_meta_value( $value, 1 ) ),
-					'price'               => esc_attr( $_price ),
-					'section'             => esc_html( $this->element['uniqid'] ),
-					'section_label'       => esc_html( $this->element['label'] ),
-					'percentcurrenttotal' => isset( $this->post_data[ $this->attribute . '_hidden' ] ) ? 1 : 0,
-					'currencies'          => isset( $this->element['currencies'] ) ? $this->element['currencies'] : array(),
-					'price_per_currency'  => $this->fill_currencies(),
-					'quantity'            => 1,
-				);
 			} else {
 				wc_add_notice( $upload['error'], 'error' );
 			}
+		}
+
+		if ( $can_be_added ){
+			return array(
+				'mode' => 'builder',
+
+				'cssclass'         => esc_html( $this->element['class'] ),
+				'hidelabelincart'  => esc_html( $this->element['hide_element_label_in_cart'] ),
+				'hidevalueincart'  => esc_html( $this->element['hide_element_value_in_cart'] ),
+				'hidelabelinorder' => esc_html( $this->element['hide_element_label_in_order'] ),
+				'hidevalueinorder' => esc_html( $this->element['hide_element_value_in_order'] ),
+				'element'          => $this->order_saved_element,
+
+				'name'                => esc_html( $this->element['label'] ),
+				'value'               => esc_html( $value ),
+				'display'             => esc_html( TM_EPO()->tm_order_item_display_meta_value( $value, 1 ) ),
+				'price'               => esc_attr( $_price ),
+				'section'             => esc_html( $this->element['uniqid'] ),
+				'section_label'       => esc_html( $this->element['label'] ),
+				'percentcurrenttotal' => isset( $this->post_data[ $this->attribute . '_hidden' ] ) ? 1 : 0,
+				'currencies'          => isset( $this->element['currencies'] ) ? $this->element['currencies'] : array(),
+				'price_per_currency'  => $this->fill_currencies(),
+				'quantity'            => 1,
+			);
 		}
 
 		return FALSE;

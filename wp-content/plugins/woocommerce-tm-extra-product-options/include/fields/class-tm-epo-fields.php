@@ -142,6 +142,7 @@ class TM_EPO_FIELDS {
 		$current_currency = tc_get_woocommerce_currency();
 		foreach ( $price_per_currencies as $currency => $price_rule ) {
 			$copy_element = $this->element;
+			$copy_element['price_rules_original'] = $copy_element['price_rules'];
 			$copy_element['price_rules'] = $price_rule;
 			$currency_price = TM_EPO()->calculate_price( $this->post_data, $copy_element, $this->key, $this->attribute, $this->per_product_pricing, $this->cpf_product_price, $this->variation_id, '', $currency, $current_currency, $price_per_currencies );
 			$price_per_currency[ $currency ] = $currency_price;

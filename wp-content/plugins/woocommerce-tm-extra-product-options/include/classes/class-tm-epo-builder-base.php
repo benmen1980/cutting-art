@@ -481,7 +481,7 @@ final class TM_EPO_BUILDER_base {
 					),
 					"sectiontype"      => array(
 						"id"               => "sections_type",
-						"message0x0_class" => "builder_hide_for_variation",
+						//"message0x0_class" => "builder_hide_for_variation",
 						"wpmldisable"      => 1,
 						"default"          => "",
 						"type"             => "select",
@@ -660,7 +660,7 @@ final class TM_EPO_BUILDER_base {
 					array(
 						"id"               => "header_subtitle_position",
 						"wpmldisable"      => 1,
-						"message0x0_class" => "builder_hide_for_variation",
+						//"message0x0_class" => "builder_hide_for_variation",
 						"default"          => "",
 						"type"             => "select",
 						"tags"             => array( "id" => "builder_header_subtitle_position", "name" => "tm_meta[tmfbuilder][header_subtitle_position][]" ),
@@ -1104,7 +1104,7 @@ final class TM_EPO_BUILDER_base {
 			"wpmldisable" => 1,
 			"default"     => "1",
 			"type"        => "select",
-			"tags"        => array( "id" => "builder_" . $name . "_required", "name" => "tm_meta[tmfbuilder][" . $name . "_enabled][]" ),
+			"tags"        => array( "class"=>"is_enabled", "id" => "builder_" . $name . "_required", "name" => "tm_meta[tmfbuilder][" . $name . "_enabled][]" ),
 			"options"     => array(
 				array( "text" => __( 'No', 'woocommerce-tm-extra-product-options' ), "value" => '0' ),
 				array( "text" => __( 'Yes', 'woocommerce-tm-extra-product-options' ), "value" => '1' ),
@@ -2342,7 +2342,7 @@ final class TM_EPO_BUILDER_base {
 				),
 				array(
 					"id"               => $id . "_title",
-					"message0x0_class" => "builder_hide_for_variation",
+					//"message0x0_class" => "builder_hide_for_variation",
 					"default"          => "",
 					"type"             => "text",
 					"tags"             => array( "class" => "t tm-header-title", "id" => "builder_" . $id . "_title", "name" => "tm_meta[tmfbuilder][" . $id . "_title][]", "value" => "" ),
@@ -2375,7 +2375,7 @@ final class TM_EPO_BUILDER_base {
 				),
 				array(
 					"id"               => $id . "_subtitle",
-					"message0x0_class" => "builder_hide_for_variation",
+					//"message0x0_class" => "builder_hide_for_variation",
 					"default"          => "",
 					"type"             => "textarea",
 					"tags"             => array( "id" => "builder_" . $id . "_subtitle", "name" => "tm_meta[tmfbuilder][" . $id . "_subtitle][]" ),
@@ -2385,7 +2385,7 @@ final class TM_EPO_BUILDER_base {
 				array(
 					"id"               => $id . "_subtitle_position",
 					"wpmldisable"      => 1,
-					"message0x0_class" => "builder_hide_for_variation",
+					//"message0x0_class" => "builder_hide_for_variation",
 					"default"          => "",
 					"type"             => "select",
 					"tags"             => array( "id" => "builder_" . $id . "_subtitle_position", "name" => "tm_meta[tmfbuilder][" . $id . "_subtitle_position][]" ),
@@ -2402,7 +2402,7 @@ final class TM_EPO_BUILDER_base {
 				array(
 					"id"               => $id . "_subtitle_color",
 					"wpmldisable"      => 1,
-					"message0x0_class" => "builder_hide_for_variation",
+					//"message0x0_class" => "builder_hide_for_variation",
 					"default"          => "",
 					"type"             => "text",
 					"tags"             => array( "class" => "tm-color-picker", "id" => "builder_" . $id . "_subtitle_color", "name" => "tm_meta[tmfbuilder][" . $id . "_subtitle_color][]", "value" => "" ),
@@ -2498,9 +2498,12 @@ final class TM_EPO_BUILDER_base {
 		 * icon
 		*/
 
+		$is_enabled = isset($args['is_enabled'])?$args['is_enabled']:'0';
+		
+
 		$internal_name_input = '<input type="text" value="' . esc_attr( $args["internal_name"] ) . '" name="tm_meta[tmfbuilder][' . $args["element"] . '_internal_name][]" class="t tm-internal-name">';
 		$out = "";
-		$out .= "<div class='bitem element-" . $args["element"] . " " . $args['width'] . "'>"
+		$out .= "<div class='bitem element-" . $args["element"] . " " . $args['width'] . ($is_enabled=='0'?' element_is_disabled':'') . "'>"
 			. "<input class='builder_element_type' name='tm_meta[tmfbuilder][element_type][]' type='hidden' value='" . $args["element"] . "' />"
 			. "<input class='div_size' name='tm_meta[tmfbuilder][div_size][]' type='hidden' value='" . $args["width"] . "' />"
 			. "<div class='hstc2'>"
@@ -2568,14 +2571,20 @@ final class TM_EPO_BUILDER_base {
 					'fields'        => $fields,
 					'desc'          => '&nbsp;',
 					'icon'          => $settings["icon"],
+					'is_enabled' 	=> 1,
 				) );
 
 			}
 		}
 		$drag_elements = TM_EPO_ADMIN_GLOBAL()->js_element_data( "ditem" );
-		$out = '<div class="builder_elements closed"><div class="tc-handle tmicon tcfa tcfa-caret-up"></div><div class="builder_hidden_elements" data-template="' . esc_html( json_encode( array( "html" => $out1 ) ) ) . '"></div>'
-			. '<div class="builder_hidden_section" data-template="' . esc_html( json_encode( array( "html" => $this->section_elements( 0, $wpml_is_original_product ) ) ) ) . '"></div>'
-			. (($wpml_is_original_product) ? '<div class="builder_drag_elements">' . $drag_elements . '</div>' : '')
+		$out = chr(0x0D) . chr(0x0A) . '<script type="text/template" id="tmpl-tc-builder-elements">' .  $out1  . '"</script>' . chr(0x0D) . chr(0x0A);
+		//$out .= '<div class="builder_elements closed"><div class="tc-handle tmicon tcfa tcfa-caret-up"></div><div class="builder_hidden_elements" data-template="' . esc_html( json_encode( array( "html" => $out1 ) ) ) . '"></div>'
+		$out .= '<div class="builder_elements closed"><div class="tc-handle tmicon tcfa tcfa-caret-up"></div><div class="builder_hidden_elements"></div>';
+		//$out .= '<div class="builder_hidden_section" data-template="' . esc_html( json_encode( array( "html" => $this->section_elements( 0, $wpml_is_original_product ) ) ) ) . '"></div>'
+		$out .= '<div class="builder_hidden_section"></div>';
+		$out .= chr(0x0D) . chr(0x0A) . '<script type="text/template" id="tmpl-tc-builder-section">' .  $this->section_elements( 0, $wpml_is_original_product ) . '"</script>' . chr(0x0D) . chr(0x0A);
+
+		$out .= (($wpml_is_original_product) ? '<div class="builder_drag_elements">' . $drag_elements . '</div>' : '')
 			. (($wpml_is_original_product) ? '<div class="builder_actions">' . '<button type="button" class="builder_add_section tc tc-button"><i class="tcfa tcfa-plus-square"></i> ' . __( "Add section", 'woocommerce-tm-extra-product-options' ) . '</button>' . '</div>' : '')
 			. "</div>";
 		if ( empty( $echo ) ) {
@@ -3342,6 +3351,7 @@ final class TM_EPO_BUILDER_base {
 								'label'         => $_this_elements[ $_elements[ $k0 ] ]["name"],
 								'desc'          => '&nbsp;',
 								'icon'          => $_this_elements[ $_elements[ $k0 ] ]["icon"],
+								'is_enabled'    => isset( $builder[ $_elements[ $k0 ] . '_enabled' ][ $_counter[ $_elements[ $k0 ] ] ] )?$builder[ $_elements[ $k0 ] . '_enabled' ][ $_counter[ $_elements[ $k0 ] ] ]:'1',
 							) );
 						}
 					}

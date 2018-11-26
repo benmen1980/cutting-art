@@ -59,6 +59,8 @@ final class TM_EPO_COMPATIBILITY_base {
 		TM_EPO_COMPATIBILITY_elasticpress::instance()->init();
 		TM_EPO_COMPATIBILITY_theseoframework::instance()->init();
 		TM_EPO_COMPATIBILITY_woocommerce_germanized_pro::instance()->init();
+		TM_EPO_COMPATIBILITY_bookings_and_appointment::instance()->init();
+		TM_EPO_COMPATIBILITY_wootours::instance()->init();
 
 	}
 

@@ -40,14 +40,16 @@ final class TM_EPO_COMPATIBILITY_woothemes_bookings {
 		if ( !class_exists( 'WC_Bookings' ) ) {
 			return;
 		}
+		add_filter( 'wc_epo_add_cart_item_original_price', array( $this, 'wc_epo_add_cart_item_original_price' ), 10, 2 );
+		add_filter( 'woocommerce_add_cart_item_data', array( $this, 'add_cart_item_data' ), 11, 2 );
 		add_filter( 'wc_epo_get_settings', array( $this, 'wc_epo_get_settings' ), 10, 1 );
-		add_filter( 'booking_form_calculated_booking_cost', array( $this, 'adjust_booking_cost' ), 10, 3 );
 		add_filter( 'wc_epo_cart_options_prices', array( $this, 'wc_epo_cart_options_prices' ), 10, 2 );
 		add_filter( 'wc_epo_adjust_price', array( $this, 'wc_epo_adjust_price' ), 10, 2 );
 
-		add_action( 'wp_ajax_tc_epo_bookings_calculate_costs', array( $this, 'tc_epo_bookings_calculate_costs' ) );
-		add_action( 'wp_ajax_nopriv_tc_epo_bookings_calculate_costs', array( $this, 'tc_epo_bookings_calculate_costs' ) );
 		add_action( 'init', array( $this, 'tc_bookings_init' ), 10 );
+		add_filter( 'booking_form_calculated_booking_cost', array( $this, 'adjust_booking_cost' ), 10, 3 );
+		//add_action( 'wp_ajax_tc_epo_bookings_calculate_costs', array( $this, 'tc_epo_bookings_calculate_costs' ) );
+		//add_action( 'wp_ajax_nopriv_tc_epo_bookings_calculate_costs', array( $this, 'tc_epo_bookings_calculate_costs' ) );
 
 		add_filter( 'wc_epo_adjust_cart_item', array( $this, 'wc_epo_adjust_cart_item' ), 10, 1 );
 
@@ -55,6 +57,23 @@ final class TM_EPO_COMPATIBILITY_woothemes_bookings {
 		add_filter( 'tm_epo_settings_settings', array( $this, 'tm_epo_settings_settings' ), 10, 1 );
 
 		add_filter( 'wcml_cart_contents_not_changed', array( $this, 'filter_bundled_product_in_cart_contents' ), 9999, 3 );
+	}
+
+	public function add_cart_item_data( $cart_item, $product_id ) {
+		if ( ! isset( $cart_item['tc_booking_original_price'] ) && isset( $cart_item['booking'] ) && isset( $cart_item['booking']['_cost'] ) ){
+			 $cart_item['tc_booking_original_price'] = $cart_item['booking']['_cost'];
+		}
+		return $cart_item;
+	}
+
+	public function wc_epo_add_cart_item_original_price( $price = "", $cart_item = "" ) {
+
+		if ( isset( $cart_item['tc_booking_original_price'] ) ){
+			$price = $cart_item['tc_booking_original_price'];
+		}
+
+		return $price;
+		
 	}
 
 	public function filter_bundled_product_in_cart_contents( $cart_item, $key, $current_language ){
@@ -80,11 +99,18 @@ final class TM_EPO_COMPATIBILITY_woothemes_bookings {
 	}
 
 	public function tc_bookings_init() {
-		global $woocommerce_wpml;
-		if ( TM_EPO_WPML()->is_active() && $woocommerce_wpml && property_exists( $woocommerce_wpml, 'compatibility' ) && $woocommerce_wpml->compatibility && $woocommerce_wpml->compatibility->bookings ) {
-			if ( !is_admin() || isset( $_POST['action'] ) && $_POST['action'] == 'tc_epo_bookings_calculate_costs' ) {
-				add_filter( 'get_post_metadata', array( $woocommerce_wpml->compatibility->bookings, 'filter_wc_booking_cost' ), 10, 4 );
+
+		$hidden = (TM_EPO()->tm_epo_final_total_box == 'hide' || TM_EPO()->tm_epo_final_total_box == 'disable' || TM_EPO()->tm_epo_final_total_box == 'disable_change');
+
+		if ( $hidden ){
+
+			global $woocommerce_wpml;
+			if ( TM_EPO_WPML()->is_active() && $woocommerce_wpml && property_exists( $woocommerce_wpml, 'compatibility' ) && $woocommerce_wpml->compatibility && $woocommerce_wpml->compatibility->bookings ) {
+				if ( !is_admin() || isset( $_POST['action'] ) && $_POST['action'] == 'tc_epo_bookings_calculate_costs' ) {
+					add_filter( 'get_post_metadata', array( $woocommerce_wpml->compatibility->bookings, 'filter_wc_booking_cost' ), 10, 4 );
+				}
 			}
+
 		}
 	}
 
@@ -178,7 +204,7 @@ final class TM_EPO_COMPATIBILITY_woothemes_bookings {
 		parse_str( $_POST['form'], $posted );
 
 		$booking_id = $posted['add-to-cart'];
-		$product = get_product( $booking_id );
+		$product = wc_get_product( $booking_id );
 
 		if ( !$product ) {
 			die( json_encode( array(
@@ -228,8 +254,9 @@ final class TM_EPO_COMPATIBILITY_woothemes_bookings {
 		$duration = !empty( $cart_data['booking']['_duration'] ) ? $cart_data['booking']['_duration'] : 0;
 
 		$c = $person + $duration;
-
-		$price = $c * $price;
+		if (!empty($c)){
+			$price = $c * $price;
+		}		
 
 		return $price;
 
@@ -237,6 +264,9 @@ final class TM_EPO_COMPATIBILITY_woothemes_bookings {
 
 	/** Adjust the final booking cost */
 	public function adjust_booking_cost( $booking_cost, $booking_form, $posted ) {
+		if ( isset( $posted['tc_suppress_filter_booking_cost'] ) ){
+			return $booking_cost;
+		}
 		$epos = TM_EPO()->tm_add_cart_item_data( array(), tc_get_id( $booking_form->product ), $posted, TRUE );
 		$extra_price = 0;
 		$booking_data = $booking_form->get_posted_data( $posted );
@@ -265,7 +295,11 @@ final class TM_EPO_COMPATIBILITY_woothemes_bookings {
 
 		}
 
-		return $booking_cost + $extra_price;
+		$extra_price = floatval( $extra_price );
+		$booking_cost = floatval( $booking_cost );
+		$booking_cost = $booking_cost + $extra_price;
+		
+		return $booking_cost;
 	}
 }
 

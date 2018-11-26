@@ -48,9 +48,9 @@ final class TM_EPO_COMPATIBILITY_woothemes_subscriptions {
 	/** WooCommerce Subscriptions (woothemes) support - Calculates the extra Subscription sign up fee **/
 	public function tm_subscriptions_product_sign_up_fee( $subscription_sign_up_fee = "", $product = "" ) {
 		$options_fee = 0;
-		
-		if ( !is_product() && WC()->cart ) {
-			$cart_contents = WC()->cart->get_cart();
+		$cart_contents = WC()->cart->cart_contents;
+		if ( $cart_contents && ! is_product() && WC()->cart ) {
+			//$cart_contents = WC()->cart->get_cart(); // not working for various setup combinations like when bundles is installed
 			foreach ( $cart_contents as $cart_key => $cart_item ) {
 				foreach ( $cart_item as $key => $data ) {
 					if ( $key == "tmsubscriptionfee" ) {

@@ -6,13 +6,13 @@
  * Author: themeComplete
  * Author URI: http://themecomplete.com/
  *
- * Version: 4.6.6.1
+ * Version: 4.6.9.2
  *
  * Requires at least: 4.0
  * Tested up to: 4.9
  *
  * WC requires at least: 2.6
- * WC tested up to: 3.3
+ * WC tested up to: 3.4
  *
  * @package WooCommerce TM Extra Product Options
  * @category Core
@@ -25,7 +25,7 @@ if ( !defined( 'WPINC' ) ) {
 }
 
 define( 'TM_EPO_PLUGIN_SECURITY', 1 );
-define( 'TM_EPO_VERSION', "4.6.5" );
+define( 'TM_EPO_VERSION', "4.6.9.2" );
 define( 'TM_EPO_PLUGIN_ID', '7908619' );
 define( 'TM_EPO_LOCAL_POST_TYPE', "tm_product_cp" );
 define( 'TM_EPO_GLOBAL_POST_TYPE', "tm_global_cp" );
@@ -102,5 +102,6 @@ if ( tc_woocommerce_check() ) {
 
 	/** Main plugin interface **/
 	TM_EPO()->init();
-
+	
 }
+

@@ -601,7 +601,9 @@ dl.variation img {
 	padding: 0;
 	width: 100%;
 }
-
+.tm-extra-product-options .tm-extra-product-options-field.tc-normal-mode {
+    margin: 0 0 1em;
+}
 .tm-extra-product-options .tmcp-field-wrap .tc-price {
 	font-size: 1em !important;
 	width: auto !important;
@@ -959,7 +961,11 @@ dl.variation img {
 	text-align: right;
 	top: 0;
 }
-
+.cpf-upload-container + small:before,
+.cpf-upload-container-basic + small:before {
+    content: "";
+    display: block;
+}
 .tm-arrow {
 	cursor: pointer;
 	font-size: 14px;
@@ -1340,7 +1346,9 @@ dl.variation img {
 	left: auto;
 	margin: 0;
 }
-
+#tm-tooltip img{
+	max-width: 100%;
+}
 .tmhexcolorimage {
 	display: block !important;
 	height: 100% !important;
@@ -1420,8 +1428,8 @@ dl.variation img {
 	top: 0;
 }
 
-.tm-epo-style-wrapper.round2 .tm-epo-style::after,
-.tm-epo-style-wrapper.square2 .tm-epo-style::after {
+.tm-epo-style-wrapper.round2 .tm-epo-style:after,
+.tm-epo-style-wrapper.square2 .tm-epo-style:after {
 	font-size: 0.8em;
 }
 
@@ -1445,6 +1453,7 @@ dl.variation img {
 	border-radius: 100%;
 }
 
+.tm-epo-variation-section:after,
 .tc-clearfix:after {
 	content: "";
 	display: block;
@@ -2893,8 +2902,8 @@ dl.variation img {
 }
 
 /* Aurum theme fix */
-.use_images_container .replaced-checkboxes + label::before, .use_images_container .replaced-radio-buttons + label::before,
-.replaced-checkboxes + label.tm-epo-style::before, .replaced-radio-buttons + label.tm-epo-style::before {
+.use_images_container .replaced-checkboxes + label:before, .use_images_container .replaced-radio-buttons + label:before,
+.replaced-checkboxes + label.tm-epo-style:before, .replaced-radio-buttons + label.tm-epo-style:before {
 	display: none;
 }
 

@@ -15,8 +15,8 @@ if ( isset( $textbeforeprice ) && isset( $textafterprice ) && isset( $hide_amoun
 	echo '"><span class="amount">' . $amount . '</span></span>';
 	echo $textafterprice;
 
-	if ( isset( $tm_element_settings ) & isset( $field_counter ) ) {
-		if ( !empty( $tm_element_settings['cdescription'][ $field_counter ] ) || (count( $tm_element_settings['cdescription'] ) > 1 && $tm_element_settings['type'] == 'select') ) {
+	if ( isset( $tm_element_settings ) && isset($tm_element_settings['cdescription']) && isset( $field_counter ) && isset($tm_element_settings['cdescription'][ $field_counter ]) ) {
+		if ( !empty( $tm_element_settings['cdescription'][ $field_counter ] ) || ( (isset($tm_element_settings['cdescription']) && is_array($tm_element_settings['cdescription']) && count( $tm_element_settings['cdescription'] ) > 1) && (isset($tm_element_settings['type']) && $tm_element_settings['type'] == 'select') ) ) {	
 			if ( TM_EPO()->tm_epo_description_inline == 'yes'){
 				echo '<div class="tc-inline-description">'.esc_html( do_shortcode( $tm_element_settings['cdescription'][ $field_counter ] ) ).'</div>';
 			}else{
