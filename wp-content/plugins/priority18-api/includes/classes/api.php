@@ -294,9 +294,7 @@ class API
             is_null($url_addition) ? '' : stripslashes($url_addition)
         );
 
-
         $response = wp_remote_request($url, $args);
-
         $response_code    = wp_remote_retrieve_response_code($response);
         $response_message = wp_remote_retrieve_response_message($response);
         $response_body    = wp_remote_retrieve_body($response);
@@ -310,7 +308,6 @@ class API
 
         // log request
         if ($log) {
-
             $GLOBALS['wpdb']->insert($GLOBALS['wpdb']->prefix . 'p18a_logs', [
                 'blog_id'        => get_current_blog_id(),
                 'timestamp'      => current_time('mysql'),
@@ -320,7 +317,6 @@ class API
                 'json_response'  => $response_body_decoded,
                 'json_status'    => ($response_code >= 200 && $response_code < 300) ? 1 : 0
             ]);
-
         }
 
 
