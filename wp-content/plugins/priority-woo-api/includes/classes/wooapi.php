@@ -1062,6 +1062,8 @@ class WooAPI extends \PriorityAPI\API
         // get parameters
         $params = [];
 
+        //$cta_parameters = $GLOBALS['wpdb']->get_results('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_parameters');
+
         foreach(\CuttingArt\CTA::getParameters() as $parameter) {
             $params[$parameter->name] = $parameter->priority_id;
         }
@@ -1453,7 +1455,7 @@ class WooAPI extends \PriorityAPI\API
         $data = $this->getProductDataBySku($product->get_sku());
 
         if ($data && $data !== 'no-selected') return $data['price_list_price'];
-        
+
         return $price;
     }
 
