@@ -1,9 +1,9 @@
-<?php 
+<?php
 /**
-* @package     Cutting Art Plugin
-* @author      Ante Laca <ante.laca@gmail.com>
-* @copyright   2018 Roi Holdings
-*/
+ * @package     Cutting Art Plugin
+ * @author      Ante Laca <ante.laca@gmail.com>
+ * @copyright   2018 Roi Holdings
+ */
 
 namespace CuttingArt;
 
@@ -19,9 +19,9 @@ class CTA extends \PriorityAPI\API
     public static function init()
     {
         if (is_null(static::$instance)) {
-            static::$instance = new static();    
+            static::$instance = new static();
         }
-        
+
         return static::$instance;
     }
 
@@ -41,23 +41,23 @@ class CTA extends \PriorityAPI\API
         if ($GLOBALS['pagenow'] != 'wp-login.php') {
 
             // user must be logged in as administrator or customer
-            if (current_user_can('administrator') || current_user_can('customer')) {
+            if (current_user_can('administrator') || current_user_can('customer') || current_user_can('shop_owner')) {
 
                 add_action('wp_enqueue_scripts', function(){
 
                     wp_enqueue_script('jquery');
                     wp_enqueue_script('jquery-ui-dialog');
                     wp_enqueue_style('wp-jquery-ui-dialog');
-                    wp_enqueue_script('cta-frontend-js', CTA_ASSET_URL . 'frontend.js', ['jquery']);
-    
-                }); 
-                
+                    wp_enqueue_script('cta-frontend-js', CTA_ASSET_URL . 'frontend.js', ['jquery','jquery-ui-dialog']);
+
+                });
+
 
                 // include parameters to product page
                 add_action('woocommerce_before_add_to_cart_button', function(){
                     include CTA_ADMIN_DIR . 'product_parameters.php';
-                });    
-                
+                });
+
                 // insert selected data into cart
                 add_filter('woocommerce_add_cart_item_data', function($cart_data, $product_id, $variation_id){
 
@@ -76,7 +76,7 @@ class CTA extends \PriorityAPI\API
 
                 }, 10, 3);
 
-                // show selected parameters in cart                 
+                // show selected parameters in cart
                 add_filter('woocommerce_get_item_data', function ($item_data, $cart_item) {
 
                     $parameters = $this->getProductParameters($cart_item['product_id']);
@@ -87,13 +87,13 @@ class CTA extends \PriorityAPI\API
 
                             // check if parameter is using conversion
                             $display = ($parameter->use_conversion) ? $this->getConvertedValue($cart_item[$parameter->priority_id]) : '';
-                            
+
                             $item_data[] = array(
                                 'key' => $parameter->name,
                                 'value' => $cart_item[$parameter->priority_id],
                                 'display' => $display,
                             );
-                         
+
                         }
 
                     }
@@ -103,7 +103,7 @@ class CTA extends \PriorityAPI\API
                 }, 10, 2);
 
 
-                // add parameter values to order                
+                // add parameter values to order
                 add_action( 'woocommerce_checkout_create_order_line_item', function($item, $cart_item_key, $values, $order) {
 
                     $parameters = $this->getProductParameters($values['product_id']);
@@ -111,12 +111,39 @@ class CTA extends \PriorityAPI\API
                     foreach ($parameters as $parameter) {
 
                         if (isset($values[$parameter->priority_id])) {
-                            $item->add_meta_data($parameter->name, $values[$parameter->priority_id]);
+                            if ($parameter->use_conversion){
+                                $item->add_meta_data($parameter->name, $this->getConvertedValue($values[$parameter->priority_id]));
+                            } else {
+                                $item->add_meta_data($parameter->name, $values[$parameter->priority_id]);
+                            }
                         }
 
                     }
 
                 }, 10, 4);
+
+
+                /*
+                 * the default conversion type (should be Europe size type)
+                 * convert ring size value for order/api
+                */
+                add_action( 'woocommerce_thankyou', function ($order_get_id){
+                $default = $this->getDefaultConversionType();
+                if ($default->name !== 'Europe'){
+                    $order = wc_get_order($order_get_id);
+                    foreach ($order->get_items() as $item_id => $item_obj) {
+                        $meta = wc_get_order_item_meta ($item_id, 'Ring Size', 'true' );
+                        if ($meta) {
+                        $size_id = $GLOBALS['wpdb']->get_var('SELECT id FROM ' . $GLOBALS['wpdb']->prefix . 'cta_sizes WHERE size = '.$meta.'');
+                        if($size_id){
+                            $europe_size = $GLOBALS['wpdb']->get_var('SELECT size FROM ' . $GLOBALS['wpdb']->prefix . 'cta_conversions WHERE size_id = ' . $size_id . ' AND type_id = 2');
+                            wc_update_order_item_meta($item_id, 'Ring Size', $europe_size);
+                        }
+                        }
+
+                     }
+                  }
+                  },10, 4);
 
 
             } else {
@@ -131,18 +158,33 @@ class CTA extends \PriorityAPI\API
     }
 
     // backend part
+
+    public  function checkbox_login()
+    {
+        add_settings_section("section", null, null, "redirect");
+        add_settings_field("redirect-checkbox", "Disable login redirect", array($this, 'checkbox_login_display'), "redirect", "section");
+        register_setting("section", "redirect-checkbox");
+    }
+   public function checkbox_login_display()
+    {?>
+        <input type="checkbox" name="redirect-checkbox" value="1" <?php checked(1, get_option('redirect-checkbox'), true); ?> />
+        <?php
+    }
+
     private function backend()
     {
-   
+
         add_action('admin_init', function() {
 
+            $this->checkbox_login();
+
             // check if current user is an admin
-            if ( ! current_user_can('administrator')) {
-                $this->redirectToLoginPage();
+            if ( ! current_user_can('administrator')&& ! current_user_can('shop_owner')) {
+               $this->redirectToLoginPage();
             }
 
             // enqueue admin styles and scripts
-            wp_enqueue_style('cta-admin-css', CTA_ASSET_URL . 'style.css');   
+            wp_enqueue_style('cta-admin-css', CTA_ASSET_URL . 'style.css');
             wp_enqueue_script('cta-admin-js', CTA_ASSET_URL . 'admin.js', ['jquery']);
             wp_localize_script('cta-admin-js', 'CTA', [
                 'delete' => __('Delete', 'cta'),
@@ -153,7 +195,7 @@ class CTA extends \PriorityAPI\API
                 'removeValue' => __('Are you sure you want to remove value', 'cta'),
                 'assetUrl' => CTA_ASSET_URL,
             ]);
- 
+
 
             // add parameters tab to product page
             add_filter('woocommerce_product_data_tabs', function($tabs) {
@@ -165,7 +207,7 @@ class CTA extends \PriorityAPI\API
                 ];
 
                 return $tabs;
-                
+
             });
 
             // add parameters panel to product page
@@ -173,9 +215,9 @@ class CTA extends \PriorityAPI\API
 
                 include CTA_ADMIN_DIR . 'panel.php';
 
-            });          
+            });
 
-                    
+
         });
 
         // admin page
@@ -183,7 +225,7 @@ class CTA extends \PriorityAPI\API
 
             include CTA_CLASSES_DIR . 'listtable.php';
 
-            add_menu_page(CTA_PLUGIN_NAME, CTA_PLUGIN_NAME, 'manage_options', CTA_PLUGIN_ADMIN_URL, function() { 
+            add_menu_page(CTA_PLUGIN_NAME, CTA_PLUGIN_NAME, 'manage_options', CTA_PLUGIN_ADMIN_URL, function() {
 
                 // admin pages
                 switch($this->get('tab')) {
@@ -215,7 +257,7 @@ class CTA extends \PriorityAPI\API
                             wp_redirect('admin.php?page=' . CTA_PLUGIN_ADMIN_URL);
                             exit;
                         }
-                        
+
                         include CTA_ADMIN_DIR . 'defaults_values.php';
 
                         break;
@@ -271,20 +313,20 @@ class CTA extends \PriorityAPI\API
 
                         break;
 
-                    default: 
+                    default:
 
                         include CTA_ADMIN_DIR . 'parameters.php';
                 }
 
             });
-            
+
         });
 
         /**
          * AJAX
          */
 
-        // ajax add parameter       
+        // ajax add parameter
         add_action('wp_ajax_cta_add_param', function() {
 
             $parameter = $this->getParameter($this->post('param'));
@@ -308,7 +350,7 @@ class CTA extends \PriorityAPI\API
         });
 
 
-        // ajax save parameter value       
+        // ajax save parameter value
         add_action('wp_ajax_cta_save_value', function() {
 
             $status = $GLOBALS['wpdb']->insert($GLOBALS['wpdb']->prefix . 'cta_parameters_meta', [
@@ -319,7 +361,7 @@ class CTA extends \PriorityAPI\API
 
             // send response
             wp_send_json([
-                'status' => $status, 
+                'status' => $status,
                 'id' => $GLOBALS['wpdb']->insert_id,
                 'error' => $GLOBALS['wpdb']->last_error
             ]);
@@ -327,7 +369,7 @@ class CTA extends \PriorityAPI\API
         });
 
 
-        // ajax remove parameter value       
+        // ajax remove parameter value
         add_action('wp_ajax_cta_remove_value', function() {
 
             $status = $GLOBALS['wpdb']->query('DELETE FROM ' . $GLOBALS['wpdb']->prefix . 'cta_parameters_meta WHERE id = ' . intval($this->post('id')));
@@ -336,7 +378,7 @@ class CTA extends \PriorityAPI\API
 
         });
 
-        // ajax remove parameter group       
+        // ajax remove parameter group
         add_action('wp_ajax_cta_remove_param', function() {
 
             $id = intval($this->post('id'));
@@ -412,7 +454,7 @@ class CTA extends \PriorityAPI\API
             $this->notify(__('Value added', 'cta'));
 
         }
-        
+
 
         // delete defaults
         if ($this->get('delete') && wp_verify_nonce($this->get('cta'), 'delete_default_value')) {
@@ -453,7 +495,7 @@ class CTA extends \PriorityAPI\API
         // edit conversion type
         if ($this->post('edit_conversion_type') && wp_verify_nonce($this->post('cta'), 'edit_conversion_type')) {
 
-            
+
             $default = $this->post('default_conversion_type') ? 1 : 0;
 
             // only one is default
@@ -477,7 +519,7 @@ class CTA extends \PriorityAPI\API
 
 
             $message = ($status) ? __('Conversion type edited', 'cta') :  __('Something went wrong, conversion type not edited', 'cta');
-            
+
 
             $this->notify($message, $status ? 'success' : 'error');
 
@@ -537,7 +579,7 @@ class CTA extends \PriorityAPI\API
             ],[
                 'id' => $size_id
             ]);
-            
+
             foreach($_POST['conversion_size'] as $type_id => $value) {
 
                 $GLOBALS['wpdb']->update($GLOBALS['wpdb']->prefix . 'cta_conversions', [
@@ -552,7 +594,7 @@ class CTA extends \PriorityAPI\API
             }
 
             $message = empty($GLOBALS['wpdb']->last_error) ? __('Conversion edited', 'cta') :  __('Something went wrong, conversion not edited', 'cta');
-            
+
 
             $this->notify($message);
 
@@ -577,9 +619,11 @@ class CTA extends \PriorityAPI\API
      */
     public function redirectToLoginPage()
     {
-        wp_logout(); // logout current user
-        wp_redirect(wp_login_url());
-        exit;
+        if (get_option('redirect-checkbox')!=='1') {
+            wp_logout(); // logout current user
+            wp_redirect(wp_login_url());
+            exit;
+        }
     }
 
 
@@ -594,7 +638,7 @@ class CTA extends \PriorityAPI\API
         return $GLOBALS['wpdb']->get_results('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_parameters');
     }
 
-    
+
     /**
      * Get  parameter
      *
@@ -624,7 +668,7 @@ class CTA extends \PriorityAPI\API
      * @param [int] $param_id
      * @return array
      */
-    public function getParametersMeta($product_id, $param_id) 
+    public function getParametersMeta($product_id, $param_id)
     {
 
         return $GLOBALS['wpdb']->get_results('
@@ -637,7 +681,7 @@ class CTA extends \PriorityAPI\API
 
 
 
-    public function getProductParameters($id) 
+    public function getProductParameters($id)
     {
 
         if (isset(static::$parameters[$id])) {
@@ -679,11 +723,11 @@ class CTA extends \PriorityAPI\API
                                 'product_id' => $id,
                                 'meta_value' => $data->meta_value
                             ]);
-                
+
                         }
 
                     }
-                    
+
                 }
 
             } else {
@@ -697,12 +741,12 @@ class CTA extends \PriorityAPI\API
                 }
 
             }
-            
+
         }
 
 
         static::$parameters[$id] = $parameters;
-       
+
 
         return static::$parameters[$id];
 
@@ -728,7 +772,7 @@ class CTA extends \PriorityAPI\API
      */
     public function getConversionTypes()
     {
-        return $GLOBALS['wpdb']->get_results('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_types ORDER BY default_type DESC');  
+        return $GLOBALS['wpdb']->get_results('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_types ORDER BY default_type DESC');
     }
 
 
@@ -739,7 +783,13 @@ class CTA extends \PriorityAPI\API
      */
     public function getDefaultConversionType()
     {
-        return $GLOBALS['wpdb']->get_row('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_types WHERE default_type = 1');  
+        $user_id = get_current_user_id();
+        $user_default_ring_size_type = get_user_meta($user_id,'default_ring_size_type', true);
+        if ($user_default_ring_size_type){
+            return $GLOBALS['wpdb']->get_row('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_types WHERE id = '.$user_default_ring_size_type.'');
+        } else {
+            return $GLOBALS['wpdb']->get_row('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_types WHERE default_type = 1');
+        }
     }
 
 
@@ -752,7 +802,7 @@ class CTA extends \PriorityAPI\API
     {
         // cache results
         if(!isset(static::$conversion_data[$size_id])) {
-            static::$conversion_data[$size_id] = $GLOBALS['wpdb']->get_row('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_conversions WHERE size_id = ' . intval($size_id));  
+            static::$conversion_data[$size_id] = $GLOBALS['wpdb']->get_row('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_conversions WHERE size_id = ' . intval($size_id));
         }
 
         return static::$conversion_data[$size_id];
@@ -761,7 +811,7 @@ class CTA extends \PriorityAPI\API
 
     public function getConversions()
     {
-        return $GLOBALS['wpdb']->get_results('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_conversions', ARRAY_A);  
+        return $GLOBALS['wpdb']->get_results('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_conversions', ARRAY_A);
 
     }
 
@@ -779,7 +829,7 @@ class CTA extends \PriorityAPI\API
             AND conversions.type_id = ' . $default->id . '
         ';
 
-        $data = $GLOBALS['wpdb']->get_row($query);  
+        $data = $GLOBALS['wpdb']->get_row($query);
 
         return ($data) ? $data->size : null;
 
@@ -787,14 +837,14 @@ class CTA extends \PriorityAPI\API
 
 
 
-        /**
+    /**
      * Get default sizes
      *
      * @return void
      */
     public function getDefaultSizes()
     {
-        return $GLOBALS['wpdb']->get_results('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_sizes');  
+        return $GLOBALS['wpdb']->get_results('SELECT * FROM ' . $GLOBALS['wpdb']->prefix . 'cta_sizes');
 
     }
 
